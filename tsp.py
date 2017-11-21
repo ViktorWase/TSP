@@ -17,9 +17,11 @@ class TSP():
 		self.bounds = [0, inf]
 
 	def approximate_value(self):
+		if self.n <= 1:
+			return 0.0
 		val = exp(log( 0.5*(self.bounds[1]+self.bounds[0])))
-		assert val >= self.bounds[0]
-		assert val <= self.bounds[1]
+		#assert val >= self.bounds[0]-1.0e-6
+		#assert val <= self.bounds[1]+1.0e-6
 		return val
 
 	def update_min(self, x):
@@ -104,7 +106,6 @@ class TSP():
 		
 		self.update_max(self.bestValYet)
 
-		#print("last", self.bestValYet)
 
 	def dist(self, p1, p2):
 		return sqrt(sum( (p1[k]-p2[k])*(p1[k]-p2[k]) for k in range(self.dims) )) 
@@ -192,9 +193,7 @@ class TSP():
 			unused_cities.pop(unused_cities.index(best_yet_idx))
 			total_cost += best_yet
 			current_city_idx = best_yet_idx
-
 		total_cost += sqrt(sum( (self.cities[seq[-1]][k]-self.cities[seq[0]][k])*(self.cities[seq[-1]][k]-self.cities[seq[0]][k]) for k in range(self.dims)))
-
 		if should_save and (self.bestValYet == None or total_cost < self.bestValYet):
 			self.bestValYet = total_cost
 			if should_save:
@@ -388,10 +387,10 @@ class TSP():
 		# Rotate to make it start at starting pos
 		def shift(l, n):
 			return l[n:] + l[:n]
-		tour = shift(tour, tour.index(n))
-		assert tour[0] == n
+		tour = shift(tour, tour.index(self.n))
+		assert tour[0] == self.n
 		tour.pop(0)
-		assert len(tour) == n 
+		assert len(tour) == self.n 
 		cost = self.calc_cost( tour, should_save=should_save )
 
 		self.update_max(cost)
@@ -471,6 +470,8 @@ class TSP():
 				#self.bestValYet = val
 				#print("2opt", self.bestValYet)
 
+		if self.n < 5:
+			return
 		for i in range(max_iter):
 			mutate_using_2_opts()
 
