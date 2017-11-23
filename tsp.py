@@ -87,7 +87,7 @@ class TSP():
 			greed_val = self.greedy_sol(should_save=True)
 			self.update_max(greed_val)
 		if grade >= 1:
-			even_more_improved_greed_val = self.improve_solution_using_2opts(max_iter=1000)
+			even_more_improved_greed_val = self.improve_solution_using_2opts(max_iter=100)
 		if grade >= 2:
 			even_more_improved_greed_val = self.improve_solution_using_2opts(max_iter=1000)
 			improved_greed_val = self.improve_solution_using_straightning_swaps(max_iter=100)

@@ -1,7 +1,8 @@
 from tsp import TSP
+from utils import *
 
 import matplotlib.pyplot as plt
-from random import shuffle, randint, gauss, seed
+from random import shuffle, randint, gauss, seed, random
 from math import inf
 from copy import deepcopy, copy
 
@@ -53,11 +54,19 @@ def mutate(division_of_cities, nr_of_cities, nr_of_vans):
 	return division_of_cities
 
 
-def ns(non_fixed_cities_idxs, divided_cities, nr_of_vans, max_dist_per_van, cities, max_iter=20, grade=1):
+def ns(non_fixed_cities_idxs, divided_cities, nr_of_vans, max_dist_per_van, cities, max_iter=100, grade=1):
 
 	# Let's guess a lil bit.
 	def create_guess(n, nr_of_vans):
 		return [randint(0, nr_of_vans-1) for _ in range(n)]
+
+	def mutate(X, nr_of_vans, mute_rate=0.3):
+		out = copy(X)
+		r = randint(0, len(X)-1)
+		for i in range(len(X)):
+			if i==r or random() < mute_rate:
+				out[i] = randint(0, nr_of_vans-1)
+		return out
 
 	def eval(gene):
 		div = deepcopy(divided_cities)
@@ -75,23 +84,32 @@ def ns(non_fixed_cities_idxs, divided_cities, nr_of_vans, max_dist_per_van, citi
 		for tsp in tsps:
 			tsp.approximate_bounds(grade)
 
-		total_approx = sum(tsp.approximate_value() for tsp in tsps)
+		total_approx = sum(tsp.bounds[1] for tsp in tsps)
+		#total_approx = sum(tsp.approximate_value() for tsp in tsps)
 		for tsp in tsps:
-			if tsp.approximate_value() > max_dist_per_van:
+			#if tsp.approximate_value() > max_dist_per_van:
+			if tsp.bounds[1] > max_dist_per_van:
 				total_approx += 100 + (tsp.approximate_value()-max_dist_per_van)*(tsp.approximate_value()-max_dist_per_van)
 		return total_approx
 
 	best_guess = create_guess(len(non_fixed_cities_idxs), nr_of_vans)
 	best_guess_val = eval(best_guess)
 
-	# LETS GUESS!! TODO: Replace with actual optimization.
+	iterations_since_update = 0
+
 	for itr in range(max_iter):
-		guess = create_guess(len(non_fixed_cities_idxs), nr_of_vans)
+		guess = mutate(best_guess, nr_of_vans)
+		#guess = create_guess(len(non_fixed_cities_idxs), nr_of_vans)
 		val = eval(guess)
 
 		if val < best_guess_val:
 			best_guess_val = val
 			best_guess = guess
+			iterations_since_update = 0
+		else:
+			iterations_since_update += 1
+			if iterations_since_update > 15:
+				break
 
 	div = deepcopy(divided_cities)
 	for i in range(len(best_guess)):
@@ -131,10 +149,21 @@ def lns(cities, nr_of_vans, max_dist_per_van, maxiter=100):
 	bestValYet = inf
 	bestYet = deepcopy(division_of_cities)
 
+	number_of_non_fixed_cities_best = 20
+
 	for i in range(maxiter):
 		non_fixed_cities_idxs = [idx for idx in range(len(cities))]
 		shuffle(non_fixed_cities_idxs)
-		number_of_non_fixed_cities = 25 # TODO: optimize this dynamically.
+		#number_of_non_fixed_cities = 20 # TODO: optimize this dynamically.
+		
+		if random() < 0.25:
+			diff = geo_dist(0.65)
+			if random() < 0.5:
+				diff = -diff
+			number_of_non_fixed_cities = number_of_non_fixed_cities_best+diff
+			number_of_non_fixed_cities = max(min(number_of_non_fixed_cities, len(cities)-1), 1)
+		else:
+			number_of_non_fixed_cities = number_of_non_fixed_cities_best
 		non_fixed_cities_idxs = non_fixed_cities_idxs[:number_of_non_fixed_cities]
 
 		# Remove the chosen cities
@@ -154,12 +183,13 @@ def lns(cities, nr_of_vans, max_dist_per_van, maxiter=100):
 
 		new_div = ns(non_fixed_cities_idxs, division_of_cities_copy, nr_of_vans, max_dist_per_van, cities, grade=grade)
 
-		(approximate_value, tsps) = eval_division_of_cities(new_div, cities, max_dist_per_van, nr_of_vans, grade=2)
+		(approximate_value, tsps) = eval_division_of_cities(new_div, cities, max_dist_per_van, nr_of_vans, grade=grade)
 		if approximate_value < bestValYet:
+			number_of_non_fixed_cities_best = number_of_non_fixed_cities
 			bestValYet = approximate_value
 			division_of_cities = new_div
 			best_tsps = tsps
-			print("Bestval:", bestValYet)
+			print("Bestval:", bestValYet, number_of_non_fixed_cities_best)
 
 			for tsp in tsps:
 				X = []
@@ -180,7 +210,7 @@ def lns(cities, nr_of_vans, max_dist_per_van, maxiter=100):
 def vrt( cities, nr_of_vans, max_dist_per_van, maxiter=10000 ):
 	n = len( cities )
 
-	grade = 1
+	grade = 2
 
 	division_of_cities = random_division_of_cities(n, nr_of_vans)
 	assert len(division_of_cities) == nr_of_vans
@@ -229,9 +259,10 @@ def vrt( cities, nr_of_vans, max_dist_per_van, maxiter=10000 ):
 
 
 if __name__ == '__main__':
-	seed(0)
-	n = 180
-	cities = [ [gauss(0,1), gauss(0,0.6)] for _ in range(n) ]
+	seed(1)
+	n = 250
+	cities = [ [gauss(0,1), gauss(0,1)] for _ in range(n) ]
+	cities.insert(0, [0.0, 0.0 ])
 	#vrt( cities, 5, 16.0 )
 	lns(cities, 5, 16.0)
 
