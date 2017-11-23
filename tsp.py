@@ -84,15 +84,16 @@ class TSP():
 
 		if grade >= 0:
 			self.lower_bound_min_weights()
-
 			greed_val = self.greedy_sol(should_save=True)
 			self.update_max(greed_val)
 		if grade >= 1:
-			even_more_improved_greed_val = self.improve_solution_using_2opts()
+			even_more_improved_greed_val = self.improve_solution_using_2opts(max_iter=1000)
 		if grade >= 2:
-			self.two_approximation(should_save=True)
-			even_more_improved_greed_val = self.improve_solution_using_2opts()
+			even_more_improved_greed_val = self.improve_solution_using_2opts(max_iter=1000)
+			improved_greed_val = self.improve_solution_using_straightning_swaps(max_iter=100)
+			self.improve_using_point_moving()
 		if grade >= 3:
+			self.two_approximation(should_save=True)
 			self.lower_bound()
 			even_more_improved_greed_val = self.improve_solution_using_2opts()
 		if grade >= 4:
@@ -524,6 +525,9 @@ class TSP():
 				#print(self.bestValYet)
 
 		def mutate_using_k_swaps(X, k):
+			k = min(k, len(X)-2 - 1)
+			if k<2:
+				return
 			if k == 2:
 				mutate_using_2_swaps(X)
 			elif k == 3:
