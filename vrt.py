@@ -54,6 +54,9 @@ def mutate(division_of_cities, nr_of_cities, nr_of_vans):
 	return division_of_cities
 
 
+#def ns_ea(non_fixed_cities_idxs, divided_cities, nr_of_vans, max_dist_per_van, cities, max_iter=100, grade=1)
+
+
 def ns(non_fixed_cities_idxs, divided_cities, nr_of_vans, max_dist_per_van, cities, max_iter=100, grade=1):
 
 	# Let's guess a lil bit.
@@ -82,33 +85,36 @@ def ns(non_fixed_cities_idxs, divided_cities, nr_of_vans, max_dist_per_van, citi
 			tsp = TSP(cities_copy)
 			tsps.append(tsp)
 		for tsp in tsps:
-			tsp.approximate_bounds(grade)
+			#tsp.approximate_bounds(grade)
+			tsp.guess_and_improve()
 
 		total_approx = sum(tsp.bounds[1] for tsp in tsps)
 		#total_approx = sum(tsp.approximate_value() for tsp in tsps)
 		for tsp in tsps:
 			#if tsp.approximate_value() > max_dist_per_van:
 			if tsp.bounds[1] > max_dist_per_van:
-				total_approx += 100 + (tsp.approximate_value()-max_dist_per_van)*(tsp.approximate_value()-max_dist_per_van)
-		return total_approx
+				total_approx += 100 + (tsp.bounds[1]-max_dist_per_van)*(tsp.bounds[1]-max_dist_per_van)
+		return (total_approx, tsps)
 
 	best_guess = create_guess(len(non_fixed_cities_idxs), nr_of_vans)
-	best_guess_val = eval(best_guess)
+	(best_guess_val, tsps) = eval(best_guess)
+	best_tsps = None
 
 	iterations_since_update = 0
 
 	for itr in range(max_iter):
 		guess = mutate(best_guess, nr_of_vans)
 		#guess = create_guess(len(non_fixed_cities_idxs), nr_of_vans)
-		val = eval(guess)
+		(val, tsps) = eval(guess)
 
 		if val < best_guess_val:
 			best_guess_val = val
 			best_guess = guess
 			iterations_since_update = 0
+			best_tsps = tsps
 		else:
 			iterations_since_update += 1
-			if iterations_since_update > 15:
+			if iterations_since_update > 25:
 				break
 
 	div = deepcopy(divided_cities)
@@ -118,7 +124,7 @@ def ns(non_fixed_cities_idxs, divided_cities, nr_of_vans, max_dist_per_van, citi
 
 		div[g].append(idx)
 	print("here")
-	return div
+	return (div, tsps, best_guess_val)
 
 
 def eval_division_of_cities(div, cities, max_dist_per_van, nr_of_vans, grade=1):
@@ -131,10 +137,10 @@ def eval_division_of_cities(div, cities, max_dist_per_van, nr_of_vans, grade=1):
 	for tsp in tsps:
 		tsp.approximate_bounds(grade)
 
-	total_approx = sum(tsp.approximate_value() for tsp in tsps)
+	total_approx = sum(tsp.bounds[1] for tsp in tsps)
 	for tsp in tsps:
-		if tsp.approximate_value() > max_dist_per_van:
-			total_approx += 100 + (tsp.approximate_value()-max_dist_per_van)*(tsp.approximate_value()-max_dist_per_van)
+		if tsp.bounds[1] > max_dist_per_van:
+			total_approx += 100 + (tsp.bounds[1]-max_dist_per_van)*(tsp.bounds[1]-max_dist_per_van)
 	return (total_approx, tsps)
 
 
@@ -149,7 +155,7 @@ def lns(cities, nr_of_vans, max_dist_per_van, maxiter=100):
 	bestValYet = inf
 	bestYet = deepcopy(division_of_cities)
 
-	number_of_non_fixed_cities_best = 20
+	number_of_non_fixed_cities_best = 50
 
 	for i in range(maxiter):
 		non_fixed_cities_idxs = [idx for idx in range(len(cities))]
@@ -181,12 +187,12 @@ def lns(cities, nr_of_vans, max_dist_per_van, maxiter=100):
 				if has_found_it:
 					break
 
-		new_div = ns(non_fixed_cities_idxs, division_of_cities_copy, nr_of_vans, max_dist_per_van, cities, grade=grade)
+		(new_div, tsps, val) = ns(non_fixed_cities_idxs, division_of_cities_copy, nr_of_vans, max_dist_per_van, cities, grade=grade)
 
-		(approximate_value, tsps) = eval_division_of_cities(new_div, cities, max_dist_per_van, nr_of_vans, grade=grade)
-		if approximate_value < bestValYet:
+		#(approximate_value, tsps) = eval_division_of_cities(new_div, cities, max_dist_per_van, nr_of_vans, grade=grade)
+		if val < bestValYet:
 			number_of_non_fixed_cities_best = number_of_non_fixed_cities
-			bestValYet = approximate_value
+			bestValYet = val
 			division_of_cities = new_div
 			best_tsps = tsps
 			print("Bestval:", bestValYet, number_of_non_fixed_cities_best)
@@ -260,10 +266,10 @@ def vrt( cities, nr_of_vans, max_dist_per_van, maxiter=10000 ):
 
 if __name__ == '__main__':
 	seed(1)
-	n = 250
+	n = 50
 	cities = [ [gauss(0,1), gauss(0,1)] for _ in range(n) ]
 	cities.insert(0, [0.0, 0.0 ])
 	#vrt( cities, 5, 16.0 )
-	lns(cities, 5, 16.0)
+	lns(cities, 5, 26.0)
 
 

@@ -80,14 +80,163 @@ class TSP():
 				self.bestYet = X
 				#print(cost)
 
+	def mutate_using_k_swaps(self, k, idx_first, seq=None, should_save=False):
+		if seq==None:
+			seq = self.bestYet
+
+		k = min(k, len(seq)-2 - 1)
+		val = inf
+		if k<2:
+			return
+		else:
+			assert k < 10 # Otherwise we'll be here all day
+			assert k < len(seq)-2
+			permutations = get_all_permutations_of_indexes(k)
+			k_factorial = factorial(k)
+
+			#idx_first = randint(0, len(X)-k-2)
+			new_idxs = [[idx_first]*(k+2) for _ in range(k_factorial)]
+
+			counter = 0
+			for perm in permutations:
+				for j in range(k):
+					new_idxs[counter][j+1] += perm[j]+1
+				new_idxs[counter][-1] += k+1
+				counter += 1
+
+			new_costs =  [sum(self.cost_between_cities(seq[new_idxs[j][i]], seq[new_idxs[j][i+1]]) for i in range(k+1)) for j in range(len(new_idxs))]
+			idxs1 = new_idxs.pop(0)
+			cost1 = new_costs.pop(0)
+
+			if min(new_costs) < cost1:
+				best_idxs = new_idxs[new_costs.index(min(new_costs))]
+				#self.bestValYet -= (cost1-cost2)
+
+				tmps = [seq[idx] for idx in best_idxs]
+				for i in range(k+2):
+					seq[idxs1[i]] = tmps[i]
+
+				val = self.calc_cost(seq, should_save=should_save)
+		return (val, seq)
+
+
+	def do_lines_cross(self, line1, line2):
+		if line2[0]==line1[0] or line1[0]==line2[1] or line1[1]==line2[0] or line1[1]==line2[1]:
+			return False
+
+		# Check if the 2 lines intersect
+		alpha = line1[0][0]-line1[1][0]
+		beta = -line2[0][0]+line2[1][0]
+		gamma = line1[0][1]-line1[1][1]
+		delta = -line2[0][1]+line2[1][1]
+
+		det = alpha*delta - gamma*beta
+
+
+		if det != 0.0:
+			epsilon = -line1[1][0]+line2[1][0]
+			zeta    = -line1[1][1]+line2[1][1]
+
+			lambda1 = (delta*epsilon - beta*zeta)/det
+			lambda2 = (-gamma*epsilon + alpha*zeta)/det
+
+			return lambda1>=0.0 and lambda1<=1.0 and lambda2>=0.0 and lambda2<=1.0
+		else:
+			return False
+
+	def untie_cross(self, r1, r2, seq=None, should_save=False):
+		if seq == None:
+			seq = self.bestYet
+		#Make sure that r1 is the small one
+		if r2 < r1:
+			tmp = r2
+			r2 = r1
+			r1 = tmp
+		prev_part_cost = self.cost_between_cities(seq[r1], seq[(r1+1)%self.n]) + self.cost_between_cities(seq[r2], seq[(r2+1)%self.n])
+		new_part_cost = self.cost_between_cities(seq[r1], seq[r2]) + self.cost_between_cities(seq[(r1+1)%self.n], seq[(r2+1)%self.n])
+
+		if new_part_cost < prev_part_cost:
+			tmp = seq[r1+1]
+			seq[r1+1] = seq[r2]
+			seq[r2] = tmp
+
+			#Flip the order of the sites between r1 and r2
+			mid = copy(seq[(r1+2):r2])
+			mid.reverse()
+			counter = 0
+			for i in range(r1+2, r2):
+				seq[i] = mid[counter]
+				counter += 1
+
+			val = self.calc_cost(seq, should_save=should_save) # TODO: This isn't really needed? It could be replaced.
+			#print("Yes")
+		else:
+			val = inf
+		return (val, seq)
+
+	def find_and_untie_crosses(self, seq=None, should_save=False):
+		if seq==None:
+			seq = self.bestYet
+			assert seq != None
+
+		has_cross = [[False for _ in range(self.n)] for _ in range(self.n)]
+
+		found_any_crosses = False
+		nr_of_crosses = 0
+
+		for i in range(self.n):
+			line1 = [self.cities[seq[i]], self.cities[seq[(i+1)%self.n]]]
+			for j in range(self.n-1):#range( min(i-1, 0) ):
+				if abs(i-j) > 1:
+					line2 = [self.cities[seq[j]], self.cities[seq[(j+1)%self.n]]]
+
+					has_cross[i][j] = self.do_lines_cross(line1, line2)
+
+					if found_any_crosses == False and has_cross[i][j]==True:
+						found_any_crosses = True
+					if has_cross[i][j]:
+						nr_of_crosses += 1
+
+		if not found_any_crosses:
+			#print("No cross")
+			return found_any_crosses
+		#print(has_cross)
+		print("Nr of crosses:", nr_of_crosses/2)
+
+
+		for i in range(self.n):
+			for j in range(self.n-1):#range( min(i-1, 0) ):
+				if abs(i-j) > 1 and has_cross[i][j]:
+					(val, seq) = self.untie_cross(i, j, seq, should_save)
+		return seq
+
+	def guess_and_improve(self, max_iter=100):
+		self.guess_starting()
+		self.improve_solution_using_2opts(max_iter=max_iter)
+		#print(self.bestYet)
+		should_countinue = True
+		while should_countinue:
+			#print("Val:", self.bestValYet)
+			out = self.find_and_untie_crosses(should_save=True)
+			if out == False:
+				should_countinue=False
+
+		for k in range(3, 7):
+			#print("Val:", self.bestValYet)
+			for i in range(self.n-k-1):
+				self.mutate_using_k_swaps( k, i, should_save=True, seq=self.bestYet)
+			print(k)
+		#print("Val:", self.bestValYet)
+
+
 	def approximate_bounds(self, grade):
 
 		if grade >= 0:
 			self.lower_bound_min_weights()
-			greed_val = self.greedy_sol(should_save=True)
-			self.update_max(greed_val)
+			#greed_val = self.greedy_sol(should_save=True)
+			#self.update_max(greed_val)
 		if grade >= 1:
-			even_more_improved_greed_val = self.improve_solution_using_2opts(max_iter=100)
+			even_more_improved_greed_val = self.improve_solution_using_2opts(max_iter=300)
 		if grade >= 2:
 			even_more_improved_greed_val = self.improve_solution_using_2opts(max_iter=1000)
 			improved_greed_val = self.improve_solution_using_straightning_swaps(max_iter=100)
@@ -131,6 +280,8 @@ class TSP():
 		if should_save and (self.bestValYet==None or s < self.bestValYet):
 			self.bestValYet = s
 			bestYet = copy(seq)
+			if s < self.bounds[1]:
+				self.bounds[1] = s
 
 		return s
 
@@ -586,20 +737,19 @@ class TSP():
 			#mutate_using_3_swaps(self.bestYet)
 
 if __name__ == '__main__':
-	seed(1)
-	n = 200
+	seed(0)
+	n = 400
 	#print("n:", n)
 	cities = [[gauss(0,1), gauss(0,1)] for _ in range(n)]
 
 	tsp = TSP(cities)
 
-	#import cProfile
-	#import re
-	#cProfile.run('tsp.approximate_bounds()')
+	line1 = [ [1.2327571750289237, 0.1987912481934255], [0.32071110099884825, 2.389112043240686]] #10, 8
+	line2 = [[1.2881847531554629, 1.449445608699771], [0.005005283626572444, -0.06474176037268789]] #0, 6
+	print( tsp.do_lines_cross(line1, line2))
 
-	for grade in range(6):
-		tsp.approximate_bounds(grade)
-		print("Grade:", grade, " val:", tsp.approximate_value())
+	tsp.guess_and_improve()
+	print("DOne")
 
 	import matplotlib.pyplot as plt
 	X = []
@@ -611,6 +761,6 @@ if __name__ == '__main__':
 	#Y.append(0.0)
 	X.append(X[0])
 	Y.append(Y[0])
-	plt.plot(X, Y)
+	plt.plot(X, Y, '-o')
 	plt.ylabel('some numbers')
 	plt.show()
