@@ -80,6 +80,89 @@ class TSP():
 				self.bestYet = X
 				#print(cost)
 
+	def how_close_is_line_to_point_sqr(self, line, p):
+		"""Takes a line defined by two points (it doesn't go outside
+			the two points), and calcultes the shortest distance from
+			the line to the point.
+		"""
+		ax = line[0][0]-line[1][0]
+		ay = line[0][1]-line[1][1]
+		best_lambda = ((p[0]-line[1][0])*(line[0][0]-line[1][0])+(p[1]-line[1][1])*(line[0][1]-line[1][1]))/(ax*(line[0][0]-line[1][0])+ay*(line[0][1]-line[1][1]))
+
+		best_dist_sqr_yet = inf
+		if best_lambda >= 0.0 and best_lambda <= 1.0:
+			p2 = [ line[0][0]*best_lambda + (1.0-best_lambda)*line[1][0], line[0][1]*best_lambda + (1.0-best_lambda)*line[1][1] ]
+			best_dist_sqr_yet = (p[0]-p2[0])*(p[0]-p2[0]) + (p[1]-p2[1])*(p[1]-p2[1])
+
+
+		end_pnt_1 = self.dist_sqr(line[0], p)
+		end_pnt_2 = self.dist_sqr(line[1], p)
+
+		return min(end_pnt_2, min(end_pnt_1, best_dist_sqr_yet))
+
+	def find_closest_line_to_point(self, pnt_idx, seq=None):
+		if seq==None:
+			seq = self.bestYet
+
+		pos = self.cities[pnt_idx]
+
+		#Iterate thru all lines that the point isn't part of.
+		best_yet = -1
+		best_val_yet = inf
+		for i in range(self.n):
+			if seq[i]!=pnt_idx and seq[((i+1)%self.n)]!=pnt_idx:
+				line = [self.cities[seq[i]], self.cities[seq[(i+1)%self.n]] ]
+				val = self.how_close_is_line_to_point_sqr(line, pos)
+
+				if val < best_val_yet:
+					best_val_yet = val
+					best_yet = i
+		assert best_yet != -1
+		return i
+
+	def random_point_move(self, seq=None, should_save=False):
+		if seq == None:
+			seq = self.bestYet
+
+		p_idx = randint(0, self.n-1)
+		closest_line_idx = self.find_closest_line_to_point(p_idx, seq=seq)
+
+		# See if the distance decreases when the point is removed from its old
+		# two lines and inserted in the middle of the newfound one.
+		idx_in_seq = -1
+		for i in range(len(seq)): #TODO: This feel like overkill.
+			if seq[i] == p_idx:
+				idx_in_seq = i
+				break
+		assert idx_in_seq != -1
+		city_before_p = seq[idx_in_seq-1] if idx_in_seq>1 else seq[0]
+		city_after_p = seq[idx_in_seq+1] if idx_in_seq<self.n-1 else seq[-1]
+		gain = self.cost_between_cities(city_before_p, p_idx) + self.cost_between_cities(city_after_p, p_idx) - self.cost_between_cities(city_before_p, city_after_p)
+		assert gain >= 0.0
+
+		city1_in_line = seq[closest_line_idx]
+		city2_in_line = seq[closest_line_idx] if closest_line_idx < self.n-1 else seq[0]
+
+		loss = self.cost_between_cities(city1_in_line, p_idx) + self.cost_between_cities(city2_in_line, p_idx) - self.cost_between_cities(city1_in_line, city2_in_line)
+		assert loss >= 0.0
+
+		#print("gain and loss", gain, loss)
+
+		if gain > loss:
+			print("Yepp")
+			tmp = seq.pop(idx_in_seq)
+			assert tmp == p_idx
+			if closest_line_idx == self.n-1:
+				seq.insert(0, p_idx)
+			else:
+				seq.insert(closest_line_idx, p_idx)
+
+			val = self.calc_cost(seq, should_save=should_save)
+
+			return (seq, val)
+		return False
+
+
 	def mutate_using_k_swaps(self, k, idx_first, seq=None, should_save=False):
 		if seq==None:
 			seq = self.bestYet
@@ -212,8 +295,9 @@ class TSP():
 
 	def guess_and_improve(self, max_iter=100):
 		self.guess_starting()
-		self.improve_solution_using_2opts(max_iter=max_iter)
-		#print(self.bestYet)
+		#self.improve_solution_using_2opts(max_iter=max_iter)
+
+		"""		
 		should_countinue = True
 		while should_countinue:
 			#print("Val:", self.bestValYet)
@@ -221,16 +305,14 @@ class TSP():
 			if out == False:
 				should_countinue=False
 
-		for k in range(3, 7):
+		for k in range(3, 6):
 			#print("Val:", self.bestValYet)
 			for i in range(self.n-k-1):
 				self.mutate_using_k_swaps( k, i, should_save=True, seq=self.bestYet)
 			print(k)
-		#print("Val:", self.bestValYet)
-
+		"""
 
 	def approximate_bounds(self, grade):
-
 		if grade >= 0:
 			self.lower_bound_min_weights()
 			#greed_val = self.greedy_sol(should_save=True)
@@ -251,11 +333,9 @@ class TSP():
 				improved_greed_val = self.improve_solution_using_straightning_swaps()
 				self.improve_using_point_moving()
 
-
 		#self.guess_starting()
 		
 		self.update_max(self.bestValYet)
-
 
 	def dist(self, p1, p2):
 		return sqrt(sum( (p1[k]-p2[k])*(p1[k]-p2[k]) for k in range(self.dims) )) 
@@ -738,18 +818,14 @@ class TSP():
 
 if __name__ == '__main__':
 	seed(0)
-	n = 400
-	#print("n:", n)
+	n = 100
 	cities = [[gauss(0,1), gauss(0,1)] for _ in range(n)]
 
 	tsp = TSP(cities)
 
-	line1 = [ [1.2327571750289237, 0.1987912481934255], [0.32071110099884825, 2.389112043240686]] #10, 8
-	line2 = [[1.2881847531554629, 1.449445608699771], [0.005005283626572444, -0.06474176037268789]] #0, 6
-	print( tsp.do_lines_cross(line1, line2))
-
 	tsp.guess_and_improve()
 	print("DOne")
+	print("Val:", tsp.bestValYet)
 
 	import matplotlib.pyplot as plt
 	X = []
@@ -764,3 +840,22 @@ if __name__ == '__main__':
 	plt.plot(X, Y, '-o')
 	plt.ylabel('some numbers')
 	plt.show()
+
+	for itr in range(1000):
+		tsp.random_point_move(should_save=True)
+
+		if itr % 500 == 0:
+			print("Val:", tsp.bestValYet)
+			X = []
+			Y = []
+			for b in tsp.bestYet:
+				X.append(tsp.cities[b][0])
+				Y.append(tsp.cities[b][1])
+			#X.append(0.0)
+			#Y.append(0.0)
+			X.append(X[0])
+			Y.append(Y[0])
+			plt.plot(X, Y, '-o')
+			plt.ylabel('some numbers')
+			plt.show()
+
