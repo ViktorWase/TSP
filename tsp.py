@@ -96,9 +96,10 @@ class TSP():
 
 
 		end_pnt_1 = self.dist_sqr(line[0], p)
-		end_pnt_2 = self.dist_sqr(line[1], p)
+		end_pnt_2 = self.dist_sqr(line[1], p) # Don't check endpoint nr 2! That's endpoint nr one in the next line.
 
 		return min(end_pnt_2, min(end_pnt_1, best_dist_sqr_yet))
+		#return min(end_pnt_1, best_dist_sqr_yet)
 
 	def find_closest_line_to_point(self, pnt_idx, seq=None):
 		if seq==None:
@@ -111,14 +112,14 @@ class TSP():
 		best_val_yet = inf
 		for i in range(self.n):
 			if seq[i]!=pnt_idx and seq[((i+1)%self.n)]!=pnt_idx:
-				line = [self.cities[seq[i]], self.cities[seq[(i+1)%self.n]] ]
+				line = [ self.cities[seq[i]], self.cities[seq[(i+1)%self.n]] ]
 				val = self.how_close_is_line_to_point_sqr(line, pos)
 
 				if val < best_val_yet:
 					best_val_yet = val
 					best_yet = i
 		assert best_yet != -1
-		return i
+		return best_yet
 
 	def random_point_move(self, seq=None, should_save=False):
 		if seq == None:
@@ -149,7 +150,6 @@ class TSP():
 		#print("gain and loss", gain, loss)
 
 		if gain > loss:
-			print("Yepp")
 			tmp = seq.pop(idx_in_seq)
 			assert tmp == p_idx
 			if closest_line_idx == self.n-1:
@@ -295,9 +295,9 @@ class TSP():
 
 	def guess_and_improve(self, max_iter=100):
 		self.guess_starting()
-		#self.improve_solution_using_2opts(max_iter=max_iter)
+		self.improve_solution_using_2opts(max_iter=max_iter)
 
-		"""		
+		
 		should_countinue = True
 		while should_countinue:
 			#print("Val:", self.bestValYet)
@@ -310,7 +310,7 @@ class TSP():
 			for i in range(self.n-k-1):
 				self.mutate_using_k_swaps( k, i, should_save=True, seq=self.bestYet)
 			print(k)
-		"""
+		
 
 	def approximate_bounds(self, grade):
 		if grade >= 0:
@@ -817,8 +817,8 @@ class TSP():
 			#mutate_using_3_swaps(self.bestYet)
 
 if __name__ == '__main__':
-	seed(0)
-	n = 100
+	seed(1)
+	n = 250
 	cities = [[gauss(0,1), gauss(0,1)] for _ in range(n)]
 
 	tsp = TSP(cities)
@@ -841,10 +841,10 @@ if __name__ == '__main__':
 	plt.ylabel('some numbers')
 	plt.show()
 
-	for itr in range(1000):
+	for itr in range(10001):
 		tsp.random_point_move(should_save=True)
 
-		if itr % 500 == 0:
+		if itr % 5000 == 0:
 			print("Val:", tsp.bestValYet)
 			X = []
 			Y = []
@@ -858,4 +858,5 @@ if __name__ == '__main__':
 			plt.plot(X, Y, '-o')
 			plt.ylabel('some numbers')
 			plt.show()
+	
 
