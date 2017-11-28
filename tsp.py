@@ -142,7 +142,7 @@ class TSP():
 		assert gain >= 0.0
 
 		city1_in_line = seq[closest_line_idx]
-		city2_in_line = seq[closest_line_idx] if closest_line_idx < self.n-1 else seq[0]
+		city2_in_line = seq[closest_line_idx+1] if closest_line_idx < self.n-1 else seq[0]
 
 		loss = self.cost_between_cities(city1_in_line, p_idx) + self.cost_between_cities(city2_in_line, p_idx) - self.cost_between_cities(city1_in_line, city2_in_line)
 		assert loss >= 0.0
@@ -157,7 +157,7 @@ class TSP():
 			else:
 				seq.insert(closest_line_idx, p_idx)
 
-			val = self.calc_cost(seq, should_save=should_save)
+			val = self.calc_cost(seq, should_save=True)
 
 			return (seq, val)
 		return False
@@ -269,7 +269,7 @@ class TSP():
 
 		for i in range(self.n):
 			line1 = [self.cities[seq[i]], self.cities[seq[(i+1)%self.n]]]
-			for j in range(self.n-1):#range( min(i-1, 0) ):
+			for j in range(self.n):#range( min(i-1, 0) ):
 				if abs(i-j) > 1:
 					line2 = [self.cities[seq[j]], self.cities[seq[(j+1)%self.n]]]
 
@@ -305,12 +305,25 @@ class TSP():
 			if out == False:
 				should_countinue=False
 
+		
 		for k in range(3, 6):
 			#print("Val:", self.bestValYet)
 			for i in range(self.n-k-1):
 				self.mutate_using_k_swaps( k, i, should_save=True, seq=self.bestYet)
 			print(k)
 		
+		while should_countinue:
+			out = self.find_and_untie_crosses(should_save=True)
+			if out == False:
+				should_countinue=False
+		
+		for itr in range(500):
+			tsp.random_point_move(should_save=True)
+
+		while should_countinue:
+			out = self.find_and_untie_crosses(should_save=True)
+			if out == False:
+				should_countinue=False
 
 	def approximate_bounds(self, grade):
 		if grade >= 0:
@@ -818,7 +831,7 @@ class TSP():
 
 if __name__ == '__main__':
 	seed(1)
-	n = 250
+	n = 500
 	cities = [[gauss(0,1), gauss(0,1)] for _ in range(n)]
 
 	tsp = TSP(cities)
@@ -826,6 +839,27 @@ if __name__ == '__main__':
 	tsp.guess_and_improve()
 	print("DOne")
 	print("Val:", tsp.bestValYet)
+
+	
+
+	
+
+	"""
+		if itr % 1000 == 0:
+			print("Val:", tsp.bestValYet)
+			X = []
+			Y = []
+			for b in tsp.bestYet:
+				X.append(tsp.cities[b][0])
+				Y.append(tsp.cities[b][1])
+			#X.append(0.0)
+			#Y.append(0.0)
+			X.append(X[0])
+			Y.append(Y[0])
+			plt.plot(X, Y, '-o')
+			plt.ylabel('some numbers')
+			plt.show()
+	"""
 
 	import matplotlib.pyplot as plt
 	X = []
@@ -840,23 +874,5 @@ if __name__ == '__main__':
 	plt.plot(X, Y, '-o')
 	plt.ylabel('some numbers')
 	plt.show()
-
-	for itr in range(10001):
-		tsp.random_point_move(should_save=True)
-
-		if itr % 5000 == 0:
-			print("Val:", tsp.bestValYet)
-			X = []
-			Y = []
-			for b in tsp.bestYet:
-				X.append(tsp.cities[b][0])
-				Y.append(tsp.cities[b][1])
-			#X.append(0.0)
-			#Y.append(0.0)
-			X.append(X[0])
-			Y.append(Y[0])
-			plt.plot(X, Y, '-o')
-			plt.ylabel('some numbers')
-			plt.show()
 	
 
