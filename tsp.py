@@ -1,5 +1,5 @@
 from copy import deepcopy, copy
-from math import sqrt, inf, exp, log
+from math import sqrt, inf, exp, log, fabs
 from random import gauss, randint, seed, shuffle
 
 from utils import *
@@ -120,6 +120,80 @@ class TSP():
 					best_yet = i
 		assert best_yet != -1
 		return best_yet
+
+	def find_best_point_move(self, pnt_idx, seq=None):
+		if seq==None:
+			seq = self.bestYet
+
+		pos = self.cities[pnt_idx]
+
+		idx_in_seq = -1
+		for i in range(len(seq)): #TODO: This feel like overkill.
+			if seq[i] == pnt_idx:
+				idx_in_seq = i
+				break
+		assert idx_in_seq != -1
+
+		best_val_yet = -inf
+		best_idx_yet = -1
+
+		for line_idx in range(self.n):
+			if line_idx!=idx_in_seq and ((line_idx+1)%self.n)!=idx_in_seq:
+				city_before_p = seq[idx_in_seq-1] if idx_in_seq > 0 else seq[-1]
+				city_after_p = seq[idx_in_seq+1] if idx_in_seq<self.n-1 else seq[0]
+				gain = self.cost_between_cities(city_before_p, pnt_idx) + self.cost_between_cities(city_after_p, pnt_idx) - self.cost_between_cities(city_before_p, city_after_p)
+				assert gain >= 0.0
+
+				city1_in_line = seq[line_idx]
+				city2_in_line = seq[line_idx+1] if line_idx < self.n-1 else seq[0]
+
+				loss = self.cost_between_cities(city1_in_line, pnt_idx) + self.cost_between_cities(city2_in_line, pnt_idx) - self.cost_between_cities(city1_in_line, city2_in_line)
+				assert loss >= 0.0
+
+				val = gain-loss
+
+				if val > best_val_yet:
+					best_val_yet = val
+					best_idx_yet = line_idx
+
+		assert best_idx_yet != -1
+		if best_val_yet > 0.0:
+			#print(seq)
+
+			tmp = seq.pop(idx_in_seq)
+
+			assert tmp == pnt_idx
+			if best_idx_yet == self.n-1:
+				seq.insert(0, pnt_idx)
+				#print("Test 0")
+			else:
+				assert best_idx_yet != idx_in_seq
+				if best_idx_yet < idx_in_seq:
+					#print("TEst 1")
+					seq.insert(best_idx_yet+1, pnt_idx)
+				else:
+					#print("Test 2")
+					seq.insert(best_idx_yet, pnt_idx)
+			#print(seq)
+
+			self.bestYet = seq
+			self.bestValYet -= best_val_yet
+
+			"""
+			#print(self.bestValYet, best_val_yet)
+			prev_stored_val = self.bestValYet
+			val = self.calc_cost(seq, should_save=True)
+			#print("Diff:", self.bestValYet-val, val, self.bestValYet)
+			#print("Idx:", pnt_idx, "line idx:", best_idx_yet, "Idx in seq:", idx_in_seq)
+			#assert val < self.bestValYet
+
+			assert fabs(val-(prev_stored_val-best_val_yet)) < 1.0e-10
+			"""
+
+			return (seq, val)
+		else:
+			return False
+
 
 	def random_point_move(self, seq=None, should_save=False):
 		if seq == None:
@@ -281,7 +355,7 @@ class TSP():
 						nr_of_crosses += 1
 
 		if not found_any_crosses:
-			#print("No cross")
+			print("No cross")
 			return found_any_crosses
 		#print(has_cross)
 		print("Nr of crosses:", nr_of_crosses/2)
@@ -304,7 +378,6 @@ class TSP():
 			out = self.find_and_untie_crosses(should_save=True)
 			if out == False:
 				should_countinue=False
-
 		
 		for k in range(3, 6):
 			#print("Val:", self.bestValYet)
@@ -312,18 +385,27 @@ class TSP():
 				self.mutate_using_k_swaps( k, i, should_save=True, seq=self.bestYet)
 			print(k)
 		
+		should_countinue = True
 		while should_countinue:
 			out = self.find_and_untie_crosses(should_save=True)
 			if out == False:
 				should_countinue=False
 		
-		for itr in range(500):
-			tsp.random_point_move(should_save=True)
+		for j in range(4):
+			for i in range(self.n):
+				#print(i + j*self.n, self.n*4)
+				self.find_best_point_move(i)
 
+		#for itr in range(1500):
+		#	tsp.random_point_move(should_save=True)
+
+		
+		should_countinue = True
 		while should_countinue:
 			out = self.find_and_untie_crosses(should_save=True)
 			if out == False:
 				should_countinue=False
+		
 
 	def approximate_bounds(self, grade):
 		if grade >= 0:
@@ -372,7 +454,7 @@ class TSP():
 
 		if should_save and (self.bestValYet==None or s < self.bestValYet):
 			self.bestValYet = s
-			bestYet = copy(seq)
+			self.bestYet = copy(seq)
 			if s < self.bounds[1]:
 				self.bounds[1] = s
 
@@ -831,7 +913,7 @@ class TSP():
 
 if __name__ == '__main__':
 	seed(1)
-	n = 500
+	n = 200
 	cities = [[gauss(0,1), gauss(0,1)] for _ in range(n)]
 
 	tsp = TSP(cities)
@@ -839,10 +921,6 @@ if __name__ == '__main__':
 	tsp.guess_and_improve()
 	print("DOne")
 	print("Val:", tsp.bestValYet)
-
-	
-
-	
 
 	"""
 		if itr % 1000 == 0:
@@ -861,6 +939,7 @@ if __name__ == '__main__':
 			plt.show()
 	"""
 
+
 	import matplotlib.pyplot as plt
 	X = []
 	Y = []
@@ -874,5 +953,6 @@ if __name__ == '__main__':
 	plt.plot(X, Y, '-o')
 	plt.ylabel('some numbers')
 	plt.show()
+	
 	
 
