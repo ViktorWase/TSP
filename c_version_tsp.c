@@ -1,11 +1,26 @@
-#include<stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #define real double
+#define REAL_INF 1.0e100
 
 #define DIMS 2
+
+void sanity_check(int* seq, const int n){
+	for(int i=0; i<n; i++){
+		bool has_found_it = false;
+		for(int j=0; j<n; j++){
+			if(seq[j] == i){
+				has_found_it = true;
+				break;
+			}
+		}
+		assert(has_found_it);
+	}
+}
 
 real rand_real(){
 	real out = (rand()%10000)/10000.0;
@@ -27,6 +42,82 @@ real calc_cost(const int n, real** cities, int* seq){
 
 	return cost;
 }
+
+
+real find_best_point_move(const int pnt_idx, const int n, real** cities, int* seq){
+	/*
+		Go through all lines and check how much better/worse the tour would be if 
+		the city (pnt_idx) was removed from its current place and inserted in between
+		the points in the line.
+	*/
+
+	// Find the index of the pnt_idx in the list seq
+	int idx_in_seq = -1;
+	for(int i=0; i<n; i++){ //TODO: This feel like overkill.
+		if (seq[i] == pnt_idx){
+			idx_in_seq = i;
+			break;
+		}
+	}
+	assert(idx_in_seq != -1);
+
+	real best_val_yet = -REAL_INF;
+	int best_idx_yet = -1;
+
+	int city_before_p, city_after_p;
+
+	// Go thru all lines and see how much of an improvement it would be.
+	for(int line_idx=0; line_idx<n; line_idx++){
+
+		// Ignore the lines that the point belong to.
+		if(line_idx!=idx_in_seq && ((line_idx+1)%n)!=idx_in_seq){
+			city_before_p = idx_in_seq > 0 ? seq[idx_in_seq-1] : seq[n-1];
+			city_after_p = idx_in_seq<n-1 ? seq[idx_in_seq+1] : seq[0];
+
+			real gain = dist(cities[city_before_p], cities[pnt_idx]) + dist(cities[city_after_p], cities[pnt_idx]) - dist(cities[city_before_p], cities[city_after_p]);
+			assert(gain >= 0.0);
+
+			int city1_in_line = seq[line_idx];
+			int city2_in_line = line_idx < n-1 ? seq[line_idx+1] : seq[0];
+
+			real loss = dist(cities[city1_in_line], cities[pnt_idx]) + dist(cities[city2_in_line], cities[pnt_idx]) - dist(cities[city1_in_line], cities[city2_in_line]);
+			assert(loss >= 0.0);
+
+			real val = gain-loss;
+
+			if (val > best_val_yet){
+				best_val_yet = val;
+				best_idx_yet = line_idx;
+			}
+		}
+	}
+	assert(best_idx_yet != -1);
+
+	real out = 0.0;
+	// Move the point if the best line is an improvement to the current seq
+	if (best_val_yet > 0.0){
+
+		if( idx_in_seq < best_idx_yet ){
+			for(int i=idx_in_seq; i<best_idx_yet; i++){
+				seq[i] = seq[(i+1)%n];
+			}
+			seq[best_idx_yet] = pnt_idx;
+		}
+		else{
+			for(int i=idx_in_seq; i<best_idx_yet; i--){
+				seq[i] = seq[(i-1+n)%n];
+			}
+			seq[best_idx_yet] = pnt_idx;
+		}
+
+		out = best_val_yet;
+	}
+
+	sanity_check(seq, n);
+
+	return out;
+}
+
 
 real untie_cross(int r1, int r2, const int n, real** cities, int* seq){
 	/*
@@ -185,10 +276,15 @@ int main()
     }
 
     printf("Total cost: %f\n", calc_cost(n, cities, seq));
+    real cost1 = calc_cost(n, cities, seq);
 
-    printf("here: %f \n", find_and_untie_crosses(n, cities, seq));
+    printf("Best point move: %f\n", find_best_point_move(0, n, cities, seq));
+
+    //printf("here: %f \n", find_and_untie_crosses(n, cities, seq));
     printf("Total cost 2: %f\n", calc_cost(n, cities, seq));
+    real cost2 = calc_cost(n, cities, seq);
 
+    printf("diff: %f\n", cost1-cost2);
 
     //Free cities
     for(int i=0; i<n; i++){
