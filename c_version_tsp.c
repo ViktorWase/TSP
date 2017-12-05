@@ -96,24 +96,48 @@ real find_best_point_move(const int pnt_idx, const int n, real** cities, int* se
 	real out = 0.0;
 	// Move the point if the best line is an improvement to the current seq
 	if (best_val_yet > 0.0){
+		/*
+		for (int i = 0; i < n; ++i)
+		{
+			printf("%d ", seq[i]);
+		}
+		printf(" \n");
+		*/
 
-		if( idx_in_seq < best_idx_yet ){
-			for(int i=idx_in_seq; i<best_idx_yet; i++){
+		int best_line_idx = (best_idx_yet )%n; //Converting line index to point index.
+		//printf("best idx: %d\n", best_idx_yet);
+
+		if( idx_in_seq < best_line_idx ){
+			for(int i=idx_in_seq; i<best_line_idx; i++){
 				seq[i] = seq[(i+1)%n];
 			}
-			seq[best_idx_yet] = pnt_idx;
+			seq[best_line_idx] = pnt_idx;
+			//printf("case 1\n");
+			
 		}
 		else{
-			for(int i=idx_in_seq; i<best_idx_yet; i--){
+			for(int i=idx_in_seq; i>best_line_idx; i--){
 				seq[i] = seq[(i-1+n)%n];
 			}
-			seq[best_idx_yet] = pnt_idx;
+			seq[(best_line_idx+1)%n] = pnt_idx;
+			/*
+			printf("case 2\n");
+			for (int i = 0; i < n; ++i)
+			{
+				printf("%d ", seq[i]);
+			}
+			printf(" \n");
+			printf("pnt_idx: %d idx_in_seq: %d\n", pnt_idx, idx_in_seq);
+			*/
 		}
 
 		out = best_val_yet;
+		//printf("out: %f\n", out);
 	}
 
 	sanity_check(seq, n);
+
+	//printf(" \n\n");
 
 	return out;
 }
@@ -157,7 +181,9 @@ real untie_cross(int r1, int r2, const int n, real** cities, int* seq){
 		return prev_part_cost - new_part_cost;
 	}
 	else{
-		printf("I don't think this can happen, can it? %f\n", prev_part_cost - new_part_cost);
+		//if( prev_part_cost != new_part_cost){
+		//	printf("I don't think this can happen, can it? %f\n", prev_part_cost - new_part_cost);
+		//}
 		return 0.0;
 	}
 }
@@ -252,39 +278,81 @@ real find_and_untie_crosses(const int n, real** cities, int *seq){
 	return total_improvement;
 }
 
+real cross_untie_and_point_move_heuristic(const int n, real** cities, int *seq){
+	real tour_cost = calc_cost(n, cities, seq);
+	int itr=0;
+	bool should_keep_going = true;
+	real improvement;
+
+	real val_prev, val_new;
+
+	while(should_keep_going){
+		bool has_made_improvement_this_itr = false;
+
+
+		for(int pnt_idx=0; pnt_idx<n; pnt_idx++){
+			val_prev = calc_cost(n, cities, seq);
+			improvement = find_best_point_move(pnt_idx, n, cities, seq);
+
+			if(improvement!=0.0){
+				has_made_improvement_this_itr = true;
+				tour_cost -= improvement;
+
+				val_new = calc_cost(n, cities, seq);
+
+				//printf("improvement %f,  prev-new: %f, diff: %f\n", improvement, val_prev-val_new, fabs((val_prev-val_new) - improvement ));
+
+				assert( fabs((val_prev-val_new) - improvement ) < 1.0e-8);
+			}
+		}
+
+		
+		val_prev = calc_cost(n, cities, seq);
+	    improvement = find_and_untie_crosses(n, cities, seq);
+	    if(improvement!=0.0){
+			has_made_improvement_this_itr = true;
+			tour_cost -= improvement;
+
+			val_new = calc_cost(n, cities, seq);
+
+			assert( fabs((val_prev-val_new) - improvement ) < 1.0e-8);
+		}
+		
+
+		if(!has_made_improvement_this_itr){
+			should_keep_going = false;
+		}
+		printf("Tour cost: %f, itr: %d\n", tour_cost, itr );
+		itr++;
+	}
+
+	return tour_cost;
+}
+
 int main()
 {
     printf("Starting.\n");
 
-    const int n = 5;
+    const int n = 1500;
     const int dim = DIMS;
 
     srand(0);
 
     int* seq = (int*) malloc(n*sizeof(int));
 
-    //Create random cities
+    //Create random cities and a random tour.
     real** cities = (real**) malloc(n*sizeof(real*));
     for(int i=0; i<n; i++){
     	cities[i] = (real*) malloc(dim*sizeof(real));
     	for(int j=0; j<dim; j++){
     		cities[i][j] = rand_real();
     	} 
-    	printf("City: %f %f\n", cities[i][0], cities[i][1]);
+    	//printf("City: %f %f\n", cities[i][0], cities[i][1]);
 
     	seq[i] = i;
     }
 
-    printf("Total cost: %f\n", calc_cost(n, cities, seq));
-    real cost1 = calc_cost(n, cities, seq);
-
-    printf("Best point move: %f\n", find_best_point_move(0, n, cities, seq));
-
-    //printf("here: %f \n", find_and_untie_crosses(n, cities, seq));
-    printf("Total cost 2: %f\n", calc_cost(n, cities, seq));
-    real cost2 = calc_cost(n, cities, seq);
-
-    printf("diff: %f\n", cost1-cost2);
+    printf("Total end cost: %f\n", cross_untie_and_point_move_heuristic(n, cities, seq));
 
     //Free cities
     for(int i=0; i<n; i++){
