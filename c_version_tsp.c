@@ -329,6 +329,138 @@ real cross_untie_and_point_move_heuristic(const int n, real** cities, int *seq){
 	return tour_cost;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+int factorial(int x){
+	if(x==1){
+		return 1;
+	}
+	else{
+		return factorial(x-1)*x;
+	}
+}
+
+void get_all_permutations_of_indexes(int* permutations, int i, const int k){
+	if(k==3){
+		if
+	}
+}
+
+
+real mutate_using_k_swaps(const int k, const int pnt_idx, const int n, real** cities, int *seq){
+
+	int k_factorial = factorial(k);
+
+	int** permutations = (int**) malloc(k_factorial * sizeof(int*));
+	for(int i=0; i<k_factorial; i++){
+		permutations[i] = (int*) malloc(k * sizeof(int));
+		get_all_permutations_of_indexes(permutations[i], i, k);
+	}
+
+
+	int** new_idxs = (int**) malloc(k_factorial * sizeof(int*) );
+	//[[pnt_idx]*(k+2) for _ in range(k_factorial)];
+
+	for(int i=0; i<k_factorial; i++){
+		new_idxs[i] = (int*) malloc((k+2) * sizeof(int));
+		for(int j=0; j<k; j++){
+			new_idxs[i][j+1] += permutations[i][j]+1;
+		}
+		new_idxs[i][(k+2)-1] += k+1;
+	}
+
+
+	real original_cost = 0.0;
+	for(int j=0; j<k+1; j++){
+		original_cost += dist(cities[seq[new_idxs[0][j]]], cities[seq[new_idxs[0][j+1]]]);
+	}
+
+	real new_cost;
+	real best_cost_yet = original_cost;
+	int best_cost_yet_idx = 0;
+	for(int i=0; i<k_factorial; i++){
+		new_cost = 0.0;
+		for(int j=0; j<k+1; j++){
+			new_cost += dist(cities[seq[new_idxs[i][j]]], cities[seq[new_idxs[i][j+1]]]);
+		}
+
+		if(new_cost < best_cost_yet){
+			best_cost_yet = new_cost;
+			best_cost_yet_idx = i;
+		}
+	}
+
+	real val;
+	if(best_idx_yet == 0){
+		out = 0.0;
+	}
+	else{
+		int* saved_vals = (int*) malloc(k*sizeof(int));
+		for(int i=0; i<k; i++){
+			//saved_vals[i] = new_idxs[best_cost_yet_idx][i];
+			saved_vals[i] = seq[pnt_idx + i + 1 ];
+		}
+
+		for(int i=0; i<k; i++){
+			seq[pnt_idx + i + 1] = saved_vals[new_idxs[best_cost_yet_idx][i] - (pnt_idx+1)];
+		}
+		out = best_cost_yet - original_cost;
+
+		free(saved_vals);
+	}
+
+
+	for(int i=0; i<k_factorial; i++){
+		free(permutations[i]);
+		free(new_idxs[i]);
+	}
+	free(permutations);
+	free(new_idxs);
+
+
+	return out;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 int main()
 {
     printf("Starting.\n");

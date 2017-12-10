@@ -13,18 +13,64 @@ def sequence_sanity_check(seq, n):
                 assert x in idxs
 
 def crossover(ind1, ind2):
-        # NOTE: ind1 and ind2 are passed by reference. Do not alter them in this function!
-        # NOTE: ind1 will recieve a chunk of ind2 and be adjusted to preserve the chunk.
-        giver = copy(ind1)
+        """ ind1 will recieve a chunk of ind2 and be adjusted to preserve the 
+        chunk.
+        """
+        giver = ind1
         receiver = copy(ind2)
         lengthSeq = len(giver)
 
         chunkLength = randint(1,lengthSeq-1)
-        chunkPosition =  randint(0,lengthSeq-chunkLength-1)#TODO Off by one?
+        chunkPosition =  randint(0,lengthSeq-chunkLength-1)#TODO Off by one? I don't think so, but the line above is.
 
         chunk = giver[chunkPosition:(chunkPosition + chunkLength)]
         notInChunk = [None] * (lengthSeq-chunkLength)
         outputList = [None] * lengthSeq
+
+        # NOTE: This part is quadratic in time, which is way too slow.
+        # It can be reduced to n log n, by sorting copies of the lists
+        # and then going through them both together and compiling a 
+        # list of all the elements that are in receiver but not in chunk.
+        tempCounter = 0
+        for i in range(lengthSeq):
+                if receiver[i] not in chunk:
+                       notInChunk[tempCounter] = receiver[i]
+                       tempCounter = tempCounter + 1
+
+        chunkCounter = 0
+        notInChunkCounter = 0
+        for i in range(lengthSeq):
+                if i >= chunkPosition and i < chunkPosition + chunkLength:
+                        outputList[i] = chunk[chunkCounter]
+                        chunkCounter += 1
+                else:
+                        outputList[i] = notInChunk[notInChunkCounter]
+                        notInChunkCounter += 1
+
+        return(outputList)
+
+
+def crossover_mod(ind1, ind2):
+        """Works exactly the same as the crossover function above, but the
+        "chunk" doesn't have to stop when the list stops. It can "wrap around"
+        and continue at the beginning of the list. 
+        """
+        giver = ind1
+        receiver = ind2
+        lengthSeq = len(giver)
+
+        chunkLength = randint(1,lengthSeq-1)
+        chunkPosition =  randint(0,lengthSeq-1)
+
+        chunk = None
+        if chunkPosition+chunkLength > lengthSeq:
+            chunk = [0.0] * chunkLength
+            for i in range(chunkLength):
+                chunk[i] = giver[(chunkPosition+i)%lengthSeq]
+        else:
+            chunk = giver[chunkPosition:(chunkPosition + chunkLength)]
+        notInChunk = [0.0] * (lengthSeq-chunkLength)
+        outputList = [0.0] * lengthSeq
 
         tempCounter = 0
         for i in range(lengthSeq):
@@ -32,34 +78,57 @@ def crossover(ind1, ind2):
                        notInChunk[tempCounter] = receiver[i]
                        tempCounter = tempCounter + 1
 
-        tempCounter = 0
-        tempCounter2 = 0
-        tempCounter3 = 0
-        while tempCounter < lengthSeq:
-                if tempCounter >= chunkPosition and tempCounter < chunkPosition + chunkLength:
-                        outputList[tempCounter] = chunk[tempCounter2]
-                        tempCounter2 = tempCounter2 + 1
-                else:
-                        outputList[tempCounter] = notInChunk[tempCounter3]
-                        tempCounter3 = tempCounter3 + 1
-                tempCounter = tempCounter + 1
+        if chunkPosition+chunkLength > lengthSeq:
+            for i in range(chunkLength):
+                outputList[(chunkPosition+i)%lengthSeq] = chunk[i]
+
+            startingPoint = chunkPosition+chunkLength-lengthSeq
+            counter = 0
+            assert startingPoint >= 0
+            assert chunkPosition > startingPoint
+            for i in range(startingPoint, chunkPosition):
+                outputList[i] = notInChunk[counter]
+                counter += 1
+        else:
+            chunkCounter = 0
+            notInChunkCounter = 0
+            for i in range(lengthSeq):
+                    if i >= chunkPosition and i < chunkPosition + chunkLength:
+                            outputList[i] = chunk[chunkCounter]
+                            chunkCounter += 1
+                    else:
+                            outputList[i] = notInChunk[notInChunkCounter]
+                            notInChunkCounter += 1
 
         return(outputList)
 
-def mutate(ind):
 
-        outputList = copy(ind)
+def mutate_in_situ(ind, mute_rate=1):
+        assert mute_rate >= 0.0
+
         length = len(ind)
-        numberOfMutations = randint(1,length)
+        numberOfMutations = randint(1, max(round(length*mute_rate), 1))
 
         for i in range(numberOfMutations):
                 a = randint(0, length - 1)
                 b = randint(0, length - 1)
-                temp = outputList[a]
-                outputList[a] = outputList[b]
-                outputList[b] = temp
+                temp = ind[a]
+                ind[a] = ind[b]
+                ind[b] = temp
         
-        return(outputList) #TODO: Implement this function
+        return(ind)
+
+
+def mutate(ind, mute_rate=0.1):
+        """Mutates the route randomly. 
+        It takes 2 random cities and make them switch indexes in
+        the route. This process is repeated a random number of times.
+        """
+
+        outputList = copy(ind)
+        mutate_in_situ(outputList, mute_rate=mute_rate)
+        
+        return(outputList)
 
 def create_random_individual(n):
         X = [i for i in range(n)]
@@ -100,7 +169,7 @@ def pick_two_parents(cum_fitness_list):
         return idxs
 
 
-def ea_tsp(tsp, popsize=10, maxiter=100):
+def ea_tsp(tsp, popsize=50, maxiter=100):
         """Evolutionary Algorithm for Traveling Salesman Problem"""
         nr_of_cities = tsp.n
         dims = tsp.dims
@@ -110,13 +179,24 @@ def ea_tsp(tsp, popsize=10, maxiter=100):
         #Create initial population
         population = [create_random_individual(nr_of_cities) for _ in range(popsize)]
 
+        mute_rates = [random() for _ in range(popsize)]
+
         cost_func = lambda X: tsp.calc_cost(X, should_save=False)
+
+        old_cost = -1
 
         for itr in range(maxiter):
                 cost_list = [cost_func(individual) for individual in population]
                 fitness_list = convert_cost_2_fitness(cost_list)
                 cumfit_list = cumsum_normalized(fitness_list)
 
+                new_cost = min(cost_list)
+                if old_cost != new_cost:
+                    old_cost = new_cost
+                    print("best yet:", new_cost, "Iter:", itr)
+                    print("mean mute:", sum(mute_rates)/(len(mute_rates)))
+
+                mute_rates_next_gen = [-1.0 for _ in range(popsize)]
                 next_generation = [[-1]*nr_of_cities for _ in range(popsize)]
 
                 # Create new generation (Not necessary during the last step)
@@ -128,12 +208,28 @@ def ea_tsp(tsp, popsize=10, maxiter=100):
 
                                 # Create and mutate a child.
                                 offspring = crossover(population[parent_idxs[0]], population[parent_idxs[1]])
-                                next_generation[p] = mutate(offspring)
+
+                                # Create new muterate
+                                r = random()
+                                mute_rate = mute_rates[parent_idxs[0]]*r + mute_rates[parent_idxs[1]]*(1.0-r)
+                                mute_rate += gauss(0, 0.05)
+                                mute_rate = max(mute_rate, 0)
+                                mute_rates_next_gen[p] = mute_rate
+
+                                next_generation[p] = mutate_in_situ(offspring, mute_rate=mute_rate)
+                                #next_generation[p] = mutate(offspring)
 
                                 # Check if the output is viable
                                 sequence_sanity_check(next_generation[p], nr_of_cities)  #Note: Only for debugging.
 
+                        # Don't forget to copy the best one from the last gen.
+                        best_idx = fitness_list.index(max(fitness_list))
+                        next_generation[-1] = copy(population[best_idx])
+                        mute_rates_next_gen[-1] = mute_rates[best_idx]
+
                         population = next_generation
+                        mute_rates = mute_rates_next_gen
+
 
         #Return best one.
         best_idx = fitness_list.index(max(fitness_list))
@@ -141,11 +237,11 @@ def ea_tsp(tsp, popsize=10, maxiter=100):
 
 if __name__ == '__main__':
         seed(0)
-        n = 50
+        n = 200
         cities = [[gauss(0,1), gauss(0,1)] for _ in range(n)]
 
         tsp = TSP(cities)
-        tsp.bestYet = ea_tsp(tsp)
+        tsp.bestYet = ea_tsp(tsp, maxiter=500)
         tsp.calc_cost(copy(tsp.bestYet), should_save=True)
         print("Final cost:", tsp.bestValYet)
 
