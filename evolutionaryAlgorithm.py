@@ -176,16 +176,25 @@ def ea_tsp(tsp, popsize=50, maxiter=100):
 
         cities = tsp.cities
 
+        
+
+
         #Create initial population
         population = [create_random_individual(nr_of_cities) for _ in range(popsize)]
+        
+        for p in range(popsize):
+            (val, greedy_sol) = tsp.greedy_sol()
+            population[p] = greedy_sol
 
-        mute_rates = [random() for _ in range(popsize)]
+        mute_rates = [random()*0.01 for _ in range(popsize)]
 
         cost_func = lambda X: tsp.calc_cost(X, should_save=False)
 
         old_cost = -1
 
         for itr in range(maxiter):
+                if itr % 100 == 0:
+                    print(itr)
                 cost_list = [cost_func(individual) for individual in population]
                 fitness_list = convert_cost_2_fitness(cost_list)
                 cumfit_list = cumsum_normalized(fitness_list)
@@ -241,7 +250,7 @@ if __name__ == '__main__':
         cities = [[gauss(0,1), gauss(0,1)] for _ in range(n)]
 
         tsp = TSP(cities)
-        tsp.bestYet = ea_tsp(tsp, maxiter=500)
+        tsp.bestYet = ea_tsp(tsp, popsize=50, maxiter=100)
         tsp.calc_cost(copy(tsp.bestYet), should_save=True)
         print("Final cost:", tsp.bestValYet)
 

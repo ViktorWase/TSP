@@ -367,44 +367,44 @@ class TSP():
 					(val, seq) = self.untie_cross(i, j, seq, should_save)
 		return seq
 
+
+	def find_best_line_move(self, line):
+		best_yet_idx = -1
+		best_yet_val = -1
+		best_yet_flip = False
+
+		for line2 in range(self.n):
+			gain = 
+
 	def guess_and_improve(self, max_iter=100):
 		self.guess_starting()
 		self.improve_solution_using_2opts(max_iter=max_iter)
 
-		
-		should_countinue = True
-		while should_countinue:
-			#print("Val:", self.bestValYet)
-			out = self.find_and_untie_crosses(should_save=True)
-			if out == False:
-				should_countinue=False
-		
-		for k in range(3, 6):
-			#print("Val:", self.bestValYet)
-			for i in range(self.n-k-1):
-				self.mutate_using_k_swaps( k, i, should_save=True, seq=self.bestYet)
-			print(k)
-		
-		should_countinue = True
-		while should_countinue:
-			out = self.find_and_untie_crosses(should_save=True)
-			if out == False:
-				should_countinue=False
-		
-		for j in range(4):
-			for i in range(self.n):
-				#print(i + j*self.n, self.n*4)
-				self.find_best_point_move(i)
+		while True:
+			print("New iter")
+			cost = self.calc_cost(self.bestYet)
 
-		#for itr in range(1500):
-		#	tsp.random_point_move(should_save=True)
+			should_countinue = True
+			while should_countinue:
+				#print("Val:", self.bestValYet)
+				out = self.find_and_untie_crosses(should_save=True)
+				if out == False:
+					should_countinue=False
+			
+			for k in range(3, 6):
+				#print("Val:", self.bestValYet)
+				for i in range(self.n-k-1):
+					self.mutate_using_k_swaps( k, i, should_save=True, seq=self.bestYet)
+				print(k)
 
-		
-		should_countinue = True
-		while should_countinue:
-			out = self.find_and_untie_crosses(should_save=True)
-			if out == False:
-				should_countinue=False
+			for j in range(1):
+				for i in range(self.n):
+					#print(i + j*self.n, self.n*4)
+					self.find_best_point_move(i)
+
+			if self.calc_cost(self.bestYet) == cost:
+				break
+	
 		
 
 	def approximate_bounds(self, grade):
@@ -526,7 +526,7 @@ class TSP():
 			if should_save:
 				self.bestYet = seq
 
-		return total_cost
+		return (total_cost, seq)
 
 	def minimum_spanning_tree(self):
 		# Calculates a minimum spanning tree.
@@ -912,7 +912,7 @@ class TSP():
 			#mutate_using_3_swaps(self.bestYet)
 
 if __name__ == '__main__':
-	seed(1)
+	seed(0)
 	n = 200
 	cities = [[gauss(0,1), gauss(0,1)] for _ in range(n)]
 
