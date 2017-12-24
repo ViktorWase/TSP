@@ -12,14 +12,20 @@ def sequence_sanity_check(seq, n):
         for x in seq:
                 assert x in idxs
 
-def crossover(ind1, ind2):
+def crossover(ind1, ind2, mr = 0.5):
         # NOTE: ind1 and ind2 are passed by reference. Do not alter them in this function!
         # NOTE: ind1 will recieve a chunk of ind2 and be adjusted to preserve the chunk.
         giver = copy(ind1)
         receiver = copy(ind2)
         lengthSeq = len(giver)
 
-        chunkLength = randint(1,lengthSeq-1)
+        #chunkLength = randint(1,lengthSeq-1)
+        chunkLength = 0
+        while chunkLength < 0.5 and chunkLength > lengthSeq-1:
+                chunkLength = gauss(lengthSeq*mr, lengthSeq*mr*0.25)
+        chunkLength = int(round(chunkLength))
+
+        
         chunkPosition =  randint(0,lengthSeq-chunkLength-1)#TODO Off by one?
 
         chunk = giver[chunkPosition:(chunkPosition + chunkLength)]
@@ -46,12 +52,16 @@ def crossover(ind1, ind2):
 
         return(outputList)
 
-def mutate(ind):
+def mutate(ind, mr=0.5):
 
         outputList = copy(ind)
         length = len(ind)
-        numberOfMutations = randint(1,length)
-
+        #numberOfMutations = randint(1,length)
+        numberOfMutations = length+1
+        while numberOfMutations > length:
+                numberOfMutations = gauss(length*mr, length*mr*0.25)
+        numberOfMutations = int(round(numberOfMutations))
+        
         for i in range(numberOfMutations):
                 a = randint(0, length - 1)
                 b = randint(0, length - 1)
