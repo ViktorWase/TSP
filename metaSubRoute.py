@@ -90,6 +90,11 @@ class MetaSubRoute():
 			p2 = self.subRoutes[self.connections[i+1]].endPoints[not self.isFirstEndPointInput[i+1]]
 			dist += calcDist(p1, p2)
 
+		# and the wrap-around-case.
+		p1 = self.subRoutes[self.connections[-1]].endPoints[self.isFirstEndPointInput[-1]]
+		p2 = self.subRoutes[self.connections[0]].endPoints[not self.isFirstEndPointInput[0]]
+		dist += calcDist(p1, p2)
+
 		return dist
 
 
