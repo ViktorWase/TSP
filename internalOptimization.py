@@ -83,11 +83,11 @@ def movePoint(route, endPoints):
 	improvement = gain - loss
 
 
-	if(fabs( (NEWVAL-OLDVAL) + (improvement) ) >= 1.0e-13 ):
+	if(fabs( (NEWVAL-OLDVAL) + (improvement) ) >= 1.0e-10 ):
 		print("Newval:", NEWVAL, "Oldval:", OLDVAL, "Gain:", gain, "Loss:", loss)
-		print("lhs:", NEWVAL-OLDVAL, "rhs", gain-loss)
+		print("lhs:", NEWVAL-OLDVAL, "rhs", gain-loss, "diff:", (NEWVAL-OLDVAL) + (improvement) )
 		print("r1:", r1, "r2:", r2, "n:", n)
-	assert fabs( (NEWVAL-OLDVAL) + (improvement) ) < 1.0e-13
+	assert fabs( (NEWVAL-OLDVAL) + (improvement) ) < 1.0e-10
 
 	return (route, improvement)
 
@@ -128,7 +128,7 @@ def simulatedAnnealing(route, endPoints, maxIter=100, decay=0.9, startDist=None)
 			currentDist -= improvement
 			route = newRoute
 
-			print("New improvement:", currentDist, improvement)
+			#print("New improvement:", currentDist, improvement)
 
 	NEWVAL = sum(calcDist(route[i], route[i+1]) for i in range(len(route)-1)) + calcDist(endPoints[0], route[0]) + calcDist(endPoints[1], route[-1])
 	if fabs(NEWVAL-currentDist)>1.0e-8:

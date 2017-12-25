@@ -12,7 +12,7 @@ class SubRoute():
 	"""
 	This is a collection of points in a specific order.
 	"""
-	def __init__(self, points, endpoint1, endpoint2, dist=None):
+	def __init__(self, points, endpoint1, endpoint2, dist=None, isReversed=True):
 		self.endPoints = [endpoint1, endpoint2]
 		self.points = list(points)
 		self.n = len(points)
@@ -25,19 +25,33 @@ class SubRoute():
 
 		self.idx = -1
 
+		self.isReversed = isReversed
+
+	def getFirstEndPoint(self):
+		if self.isReversed:
+			return self.endPoint[1]
+		else:
+			return self.endPoint[0]
+
+	def getSecondEndPoint(self):
+		if self.isReversed:
+			return self.endPoint[0]
+		else:
+			return self.endPoint[1]
 
 	def divideInto2SubRoutesRandomly(self):
 		"""
 		Takes the route and choses a random point. The route is split in 
 		two at that point. The two resulting subroutes are returned.
 		"""
+		# TODO: This function is shit.
 		assert self.n > 1
 		divisionPoint = randint(0, self.n-1)
 
 		subroute1 = SubRoute(points[0:divisionPoint+1], points[0], points[divisionPoint])
 		subroute2 = SubRoute(points[divisionPoint:], points[divisionPoint], points[-1])
 
-		return [subroute1, subroute2]
+		return (subroute1, subroute2)
 
 
 	def smoothInternal(self, maxiter=20):
@@ -60,7 +74,7 @@ class MetaSubRoute():
 	"""
 	A class that contains an assortment of SubRoutes.
 	"""
-	def __init__(self, subRoutes, connections=None, isFirstEndPointInput=None):		
+	def __init__(self, subRoutes, connections=None):		
 		self.subRoutes = subRoutes
 		self.n = len(subRoutes)
 
@@ -70,15 +84,30 @@ class MetaSubRoute():
 			connections = [i for i in range(len(subRoutes))]
 		self.connections = copy(connections)
 
-		if isFirstEndPointInput==None:
-			self.isFirstEndPointInput = [True for _ in range(self.n)]
-		else:
-			self.isFirstEndPointInput = copy(isFirstEndPointInput)
-
-		assert len(self.isFirstEndPointInput) == len(self.connections)
-
 		self.externalDist = self.calcExternalDist()
 
+	def divideSubroutes(self):
+		for i in range(2*self.n): # TODO: This 10 is stupid.
+			r = randint(0, self.n-1)
+			(self.subroutes[r], newsubroute) = self.subRoutes[r].divideInto2SubRoutesRandomly()
+
+			connectionIdxOfR=-1
+			for j in range(len(self.connections)):
+				if self.connections[j] == r:
+					connectionIdxOfR == j
+					break
+			assert connectionIdxOfR != -1
+			if connectionIdxOfR==self.n-1:
+				self.connections.append(self.n)
+			else:
+				self.connections.insert(connectionIdxOfR+1, self.n)
+
+			#TODO: The isFirstEndPointInput are all fucked up now.
+			if self.isFirstEndPointInput[]
+
+
+
+			self.n += 1
 
 	def calcExternalDist(self):
 		"""
@@ -86,15 +115,21 @@ class MetaSubRoute():
 		"""
 		dist = 0.0
 		for i in range(self.n-1):
-			p1 = self.subRoutes[self.connections[i]].endPoints[self.isFirstEndPointInput[i]]
-			p2 = self.subRoutes[self.connections[i+1]].endPoints[not self.isFirstEndPointInput[i+1]]
+			p1 = self.subRoutes[self.connections[i]].getSecondEndPoint()
+			p2 = self.subRoutes[self.connections[i+1]].getFirstEndPoint()
 			dist += calcDist(p1, p2)
 
 		# and the wrap-around-case.
-		p1 = self.subRoutes[self.connections[-1]].endPoints[self.isFirstEndPointInput[-1]]
-		p2 = self.subRoutes[self.connections[0]].endPoints[not self.isFirstEndPointInput[0]]
+		p1 = self.subRoutes[self.connections[-1]].getSecondEndPoint()
+		p2 = self.subRoutes[self.connections[0]].getFirstEndPoint()
 		dist += calcDist(p1, p2)
 
+		return dist
+
+	def getTotalDist(self):
+		dist = self.externalDist
+		for sr in self.subRoutes:
+			dist += sr.dist
 		return dist
 
 
@@ -126,39 +161,33 @@ class MetaSubRoute():
 				self.connections = tmp
 
 
-	def combineTwoSubRoutes(self, subroute1, subroute2, case):
+	def combineTwoSubRoutes(self, subroute1, subroute2):
 		"""
-		case 0: Endpoint 0 of subroute 1 to endpoint 0 of subroute 2
-		case 1: Endpoint 0 of subroute 1 to endpoint 1 of subroute 2
-		case 2: Endpoint 1 of subroute 1 to endpoint 0 of subroute 2
-		case 3: Endpoint 1 of subroute 1 to endpoint 1 of subroute 2
+		Combines 2 subroutes into one.
 		"""
 
-		endpoint1 = None
-		endpoint2 = None
+		endpoint1 = subroute1.getFirstEndPoint()
+		endpoint2 = subroute2.getSecondEndPoint()
 
-		if case==0 or case==1:
-			endpoint1 = subroute1.endPoints[0]
-			subroute1.points.append(subroute1.endPoints[1])
-		else:
-			endpoint1 = subroute1.endPoints[1]
-			subroute1.points.insert(0, subroute1.endPoints[0])
 
-		if case==0 or case==2:
-			endpoint2 = subroute2.endPoints[0]
-			subroute2.points.append(subroute2.endPoints[1])
-		else:
-			endpoint2 = subroute2.endPoints[1]
-			subroute2.points.insert(0, subroute2.endPoints[0])
-
-		if case==2 or case==3:
+		if subroute1.isReversed:
+			subroute1.points.insert(0, subroute1.getSecondEndPoint())
 			subroute1.points.reverse()
-		if case==1 or case==3:
+		else:
+			subroute1.points.append(subroute1.getSecondEndPoint())
+
+		if subroute2.isReversed:
+			subroute2.points.append(subroute2.getFirstEndPoint())
 			subroute2.points.reverse()
+		else:
+			subroute2.points.insert(0, subroute2.getFirstEndPoint())
+
 
 		points = subroute1.points + subroute2.points
 
 		subroute = SubRoute(points, endpoint1, endpoint2, dist=subroute1.dist+subroute2.dist + calcDist(endpoint1, endpoint2))
+
+		assert len(points) == subroute.n
 
 		return subroute
 
@@ -180,8 +209,8 @@ class MetaSubRoute():
 			# TODO: 5 is a hard coded number. Do some meta tuning instead.
 			for j in range(5):
 				r = randint(0, len(self.connections)-1-1)
-				p1 = self.subRoutes[self.connections[r]].endPoints[self.isFirstEndPointInput[r]]
-				p2 = self.subRoutes[self.connections[r+1]].endPoints[not self.isFirstEndPointInput[r+1]]
+				p1 = self.subRoutes[self.connections[r]].getSecondEndPoint()
+				p2 = self.subRoutes[self.connections[r+1]].getFirstEndPoint()
 				dist = calcDist(p1, p2)
 
 				if dist < shortestDistYet:
@@ -202,6 +231,7 @@ class MetaSubRoute():
 				hasBeenChosen[chosenConnections[itr]+1] = True #TODO: I am not sure regarding this one.
 				r = chosenConnections[itr]
 
+				"""
 				case = None
 				if self.isFirstEndPointInput[r] and self.isFirstEndPointInput[r+1]:
 					case = 2
@@ -215,8 +245,8 @@ class MetaSubRoute():
 				if not self.isFirstEndPointInput[r] and not self.isFirstEndPointInput[r+1]:
 					case = 1
 				assert case != None
-
-				newSubRoute = self.combineTwoSubRoutes(self.subRoutes[self.connections[r]], self.subRoutes[self.connections[r+1]], case)
+				"""
+				newSubRoute = self.combineTwoSubRoutes(self.subRoutes[self.connections[r]], self.subRoutes[self.connections[r+1]])
 
 				self.subRoutes[r] = newSubRoute # TODO: Yes?
 				#for i in range(r+1, len(self.connections)):
