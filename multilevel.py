@@ -13,7 +13,7 @@ def calcDist(p1, p2):
 
 if __name__ == '__main__':
 	seed(0)
-	gN = 12
+	gN = 120
 	gPoints = [ [random(), random()] for _ in range(gN)]
 
 	# Create subroutes
@@ -23,13 +23,24 @@ if __name__ == '__main__':
 	#simulatedAnnealing(biggerSubRoute.points, biggerSubRoute.endPoints)
 
 	msr = MetaSubRoute(subroutes)
+
+	# TODO: Replace this with a starting heuristic.
 	msr.optimize()
-	while msr.n>1:
+
+	for itr in range(4):
+		# Combine subroutes and to internal optimization.
+		while msr.n>1:
+			print("n:", msr.n)
+			msr.pickWhichSubroutesThatShouldBeCombined()
+			for i in range(len(msr.subRoutes)):
+				msr.subRoutes[i].smoothInternal()
 		print("n:", msr.n)
-		msr.pickWhichSubroutesThatShouldBeCombined()
-		for i in range(len(msr.subRoutes)):
-			msr.subRoutes[i].smoothInternal()
-	print("n:", msr.n)
 
-	msr.optimize()
+		# Divide subroutes and to external optimization
+		while msr.n<int(gN/5): #TODO: 5 is arbitraty. Tune.
+			msr.divideSubroutes()
+			msr.optimize()
+			print("n:", msr.n)
+		print("n:", msr.n)
 
+		print("TOTAL DIST:", msr.getTotalDist())

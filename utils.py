@@ -7,7 +7,6 @@ def factorial(n):
 	else:
 		return n*factorial(n-1)
 
-
 def get_all_permutations_of_indexes(n):
 	assert n > 0
 	assert n < 10 # Mostly because anything bigger than 10 will take a lot of time and memory.

@@ -19,7 +19,7 @@ class SubRoute():
 		assert self.n>0
 
 		if dist == None:
-			self.dist = sum(self.calcDist(points[i], points[i+1]) for i in range(self.n-1)) + calcDist(endpoint1, points[0]) + calcDist(endpoint2, points[-1])
+			self.dist = sum(calcDist(points[i], points[i+1]) for i in range(self.n-1)) + calcDist(endpoint1, points[0]) + calcDist(endpoint2, points[-1])
 		else:
 			self.dist = dist
 
@@ -29,15 +29,15 @@ class SubRoute():
 
 	def getFirstEndPoint(self):
 		if self.isReversed:
-			return self.endPoint[1]
+			return self.endPoints[1]
 		else:
-			return self.endPoint[0]
+			return self.endPoints[0]
 
 	def getSecondEndPoint(self):
 		if self.isReversed:
-			return self.endPoint[0]
+			return self.endPoints[0]
 		else:
-			return self.endPoint[1]
+			return self.endPoints[1]
 
 	def divideInto2SubRoutesRandomly(self):
 		"""
@@ -48,8 +48,16 @@ class SubRoute():
 		assert self.n > 1
 		divisionPoint = randint(0, self.n-1)
 
-		subroute1 = SubRoute(points[0:divisionPoint+1], points[0], points[divisionPoint])
-		subroute2 = SubRoute(points[divisionPoint:], points[divisionPoint], points[-1])
+		if self.isReversed:
+			self.isReversed = False
+			self.points.reverse() #TODO: This might be slow
+
+			tmp = self.endPoints[0]
+			self.endPoints[0] = self.endPoints[1]
+			self.endPoints[1] = tmp
+
+		subroute1 = SubRoute(self.points[0:divisionPoint+1], self.points[0], self.points[divisionPoint])
+		subroute2 = SubRoute(self.points[divisionPoint:], self.points[divisionPoint], self.points[-1])
 
 		return (subroute1, subroute2)
 
@@ -61,7 +69,7 @@ class SubRoute():
 		"""
 		#assert self.n >= 2 # There's nothing that can be changed otherwise.
 		if self.n < 2:
-			print("n is too small. No optimization to be done.")
+			#print("n is too small. No optimization to be done.")
 			return
 
 		(newPoints, newDist) = simulatedAnnealing(copy(self.points), self.endPoints)
@@ -87,25 +95,34 @@ class MetaSubRoute():
 		self.externalDist = self.calcExternalDist()
 
 	def divideSubroutes(self):
-		for i in range(2*self.n): # TODO: This 10 is stupid.
-			r = randint(0, self.n-1)
-			(self.subroutes[r], newsubroute) = self.subRoutes[r].divideInto2SubRoutesRandomly()
+		for i in range(2*self.n):
+			assert self.n == len(self.subRoutes)
+			# Look at 10 subRoutes and pick the one with the biggest dist.
+			# TODO: This 10 is stupid.
+			bestYet = -1.0
+			bestIdx = -1
+			for j in range(10):
+				r = randint(0, self.n-1)
+				if self.subRoutes[r].dist > bestYet and self.subRoutes[r].n>1:
+					bestYet = self.subRoutes[r].dist
+					bestIdx = r
+			assert bestIdx != -1
+			r = bestIdx
+			(self.subRoutes[r], newsubroute) = self.subRoutes[r].divideInto2SubRoutesRandomly()
 
-			connectionIdxOfR=-1
+			connectionIdxOfR = -1
+			assert r < self.n
 			for j in range(len(self.connections)):
 				if self.connections[j] == r:
-					connectionIdxOfR == j
+					connectionIdxOfR = j
 					break
 			assert connectionIdxOfR != -1
 			if connectionIdxOfR==self.n-1:
 				self.connections.append(self.n)
+				self.subRoutes.append(newsubroute)
 			else:
 				self.connections.insert(connectionIdxOfR+1, self.n)
-
-			#TODO: The isFirstEndPointInput are all fucked up now.
-			if self.isFirstEndPointInput[]
-
-
+				self.subRoutes.insert(connectionIdxOfR+1, newsubroute)
 
 			self.n += 1
 
@@ -133,8 +150,8 @@ class MetaSubRoute():
 		return dist
 
 
-	def optimize(self, maxIter=100):
-
+	def optimize(self, maxIter=1000):
+		# TODO: Make sure one can REVERSE the subroutes in the optimization.
 		def mutate(ind_in, mute_rate):
 			ind = copy(ind_in)
 			length = len(ind)
@@ -165,10 +182,8 @@ class MetaSubRoute():
 		"""
 		Combines 2 subroutes into one.
 		"""
-
 		endpoint1 = subroute1.getFirstEndPoint()
 		endpoint2 = subroute2.getSecondEndPoint()
-
 
 		if subroute1.isReversed:
 			subroute1.points.insert(0, subroute1.getSecondEndPoint())
@@ -181,7 +196,6 @@ class MetaSubRoute():
 			subroute2.points.reverse()
 		else:
 			subroute2.points.insert(0, subroute2.getFirstEndPoint())
-
 
 		points = subroute1.points + subroute2.points
 
