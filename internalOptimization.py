@@ -1,3 +1,10 @@
+from math import sqrt, exp, fabs
+from random import random, gauss, randint
+from copy import copy
+
+def calcDist(p1, p2):
+	return sqrt(sum((p1[i]-p2[i])*(p1[i]-p2[i]) for i in range(len(p1))))
+
 def mutate_using_2_opts(route, endpoints):
 	n = len(route)
 	r1 = randint(0, n-1-1)
@@ -32,7 +39,7 @@ def mutate_using_2_opts(route, endpoints):
 		route[i] = mid[counter]
 		counter += 1
 
-	return (route, new_part_cost-prev_part_cost)
+	return (route, -(new_part_cost-prev_part_cost))
 
 
 def movePoint(route, endPoints):
@@ -73,14 +80,16 @@ def movePoint(route, endPoints):
 
 	NEWVAL = sum(calcDist(route[i], route[i+1]) for i in range(len(route)-1)) + calcDist(endPoints[0], route[0]) + calcDist(endPoints[1], route[-1])
 
+	improvement = gain - loss
 
-	if(fabs( (NEWVAL-OLDVAL) + (gain-loss) ) >= 1.0e-10 ):
+
+	if(fabs( (NEWVAL-OLDVAL) + (improvement) ) >= 1.0e-13 ):
 		print("Newval:", NEWVAL, "Oldval:", OLDVAL, "Gain:", gain, "Loss:", loss)
 		print("lhs:", NEWVAL-OLDVAL, "rhs", gain-loss)
 		print("r1:", r1, "r2:", r2, "n:", n)
-	assert fabs( (NEWVAL-OLDVAL) + (gain-loss) ) < 1.0e-10
+	assert fabs( (NEWVAL-OLDVAL) + (improvement) ) < 1.0e-13
 
-	return (route, gain-loss)
+	return (route, improvement)
 
 
 def simulatedAnnealing(route, endPoints, maxIter=100, decay=0.9, startDist=None):
@@ -122,5 +131,7 @@ def simulatedAnnealing(route, endPoints, maxIter=100, decay=0.9, startDist=None)
 			print("New improvement:", currentDist, improvement)
 
 	NEWVAL = sum(calcDist(route[i], route[i+1]) for i in range(len(route)-1)) + calcDist(endPoints[0], route[0]) + calcDist(endPoints[1], route[-1])
+	if fabs(NEWVAL-currentDist)>1.0e-8:
+		print("newval:", NEWVAL, "currdist:", currentDist, "start:", startDist)
 	assert(fabs(NEWVAL-currentDist)<1.0e-8)
 	return (route, currentDist)
