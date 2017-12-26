@@ -58,7 +58,7 @@ def mutate(ind, mr=0.5):
         length = len(ind)
         #numberOfMutations = randint(1,length)
         numberOfMutations = length+1
-        while numberOfMutations > length:
+        while numberOfMutations > length and numberOfMutations < 0:
                 numberOfMutations = gauss(length*mr, length*mr*0.25)
         numberOfMutations = int(round(numberOfMutations))
         
