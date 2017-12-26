@@ -1,5 +1,5 @@
 from copy import copy
-from math import sqrt, inf
+from math import sqrt, inf, fabs
 from random import random, randint
 
 from internalOptimization import simulatedAnnealing
@@ -7,12 +7,11 @@ from internalOptimization import simulatedAnnealing
 def calcDist(p1, p2):
 	return sqrt(sum((p1[i]-p2[i])*(p1[i]-p2[i]) for i in range(len(p1))))
 
-
 class SubRoute():
 	"""
 	This is a collection of points in a specific order.
 	"""
-	def __init__(self, points, endpoint1, endpoint2, dist=None, isReversed=True):
+	def __init__(self, points, endpoint1, endpoint2, dist=None, isReversed=False):
 		self.endPoints = [endpoint1, endpoint2]
 		self.points = list(points)
 		self.n = len(points)
@@ -60,7 +59,6 @@ class SubRoute():
 		subroute2 = SubRoute(self.points[divisionPoint:], self.points[divisionPoint], self.points[-1])
 
 		return (subroute1, subroute2)
-
 
 	def smoothInternal(self, maxiter=20):
 		"""
@@ -143,12 +141,18 @@ class MetaSubRoute():
 
 		return dist
 
+	def getProperTotalDist(self):
+
+		dist = sum(sum(calcDist(sr.points[i], sr.points[i+1]) for i in range(sr.n-1)) + calcDist(sr.endPoints[0], sr.points[0]) + calcDist(sr.endPoints[1], sr.points[-1]) for sr in self.subRoutes)
+
+		dist += self.calcExternalDist()
+		return dist
+
 	def getTotalDist(self):
 		dist = self.externalDist
 		for sr in self.subRoutes:
 			dist += sr.dist
 		return dist
-
 
 	def optimize(self, maxIter=1000):
 		# TODO: Make sure one can REVERSE the subroutes in the optimization.
@@ -185,6 +189,13 @@ class MetaSubRoute():
 		endpoint1 = subroute1.getFirstEndPoint()
 		endpoint2 = subroute2.getSecondEndPoint()
 
+		middlepoint1 = subroute1.getSecondEndPoint()
+		middlepoint2 = subroute2.getFirstEndPoint()
+
+		DEBUG1 = subroute1.n + subroute1.n
+
+		totalDist = subroute1.dist + subroute2.dist + calcDist(middlepoint2, middlepoint1)
+
 		if subroute1.isReversed:
 			subroute1.points.insert(0, subroute1.getSecondEndPoint())
 			subroute1.points.reverse()
@@ -199,11 +210,18 @@ class MetaSubRoute():
 
 		points = subroute1.points + subroute2.points
 
-		subroute = SubRoute(points, endpoint1, endpoint2, dist=subroute1.dist+subroute2.dist + calcDist(endpoint1, endpoint2))
+		#subroute = SubRoute(points, endpoint1, endpoint2, dist=subroute1.dist+subroute2.dist + calcDist(middlepoint1, middlepoint2))
+		subroute = SubRoute(points, endpoint1, endpoint2)
 
 		assert len(points) == subroute.n
+		assert DEBUG1+2 == subroute.n
+
+		assert fabs(totalDist - subroute.dist)<1.0e-10
 
 		return subroute
+
+	def totalNumberOfCities(self):
+		return sum(sr.n for sr in self.subRoutes) + 2*len(self.subRoutes)
 
 	def pickWhichSubroutesThatShouldBeCombined(self):
 		"""
@@ -211,10 +229,36 @@ class MetaSubRoute():
 		This is repeated a few times.
 		"""
 
-		dist = self.externalDist
-		iters = int(max((0.5*self.n), 1))
+		FORDEBUG1 = self.totalNumberOfCities()
+		FORDEBUG2 = self.getProperTotalDist()
+		FORDEBUG3 = self.getTotalDist()
 
-		chosenConnections = [-1 for _ in range(iters)]
+		dist = self.externalDist
+		iters = 1#int(max((0.5*self.n), 1))
+
+		"""
+		for i in range(len(self.subRoutes)):
+			sr = self.subRoutes[self.connections[i]]
+			nextSr = self.subRoutes[self.connections[(i+1)%self.n]]
+			dist2next = calcDist(sr.getSecondEndPoint(), nextSr.getFirstEndPoint())
+			print("here:", sr.dist, "dist proper:", sum(calcDist(sr.points[j], sr.points[j+1]) for j in range(sr.n-1)) + calcDist(sr.endPoints[0], sr.points[0]) + calcDist(sr.endPoints[1], sr.points[-1]), "dist to next;", dist2next)
+		print(self.subRoutes[2].points, self.subRoutes[2].getSecondEndPoint())
+		print(self.subRoutes[3].points, self.subRoutes[3].getFirstEndPoint())
+
+
+		print("-")
+		tmp = self.subRoutes[2]
+		print(calcDist(tmp.getFirstEndPoint(), tmp.points[0]))
+		print(calcDist(tmp.points[0], tmp.getSecondEndPoint()))
+		print(calcDist(tmp.getSecondEndPoint(), self.subRoutes[3].getFirstEndPoint()))
+		tmp = self.subRoutes[3]
+		print(calcDist(tmp.getFirstEndPoint(), tmp.points[0]))
+		print(calcDist(tmp.points[0], tmp.getSecondEndPoint()))
+
+		print("external:", self.calcExternalDist())
+		print("\n")
+		"""
+
 		for i in range(iters):
 			# Take 5 random connections and pick the shortest one.
 			shortestDistYet = inf
@@ -232,42 +276,50 @@ class MetaSubRoute():
 					bestIdxYet = j
 
 				assert bestIdxYet != -1
-				chosenConnections[i] = bestIdxYet
 
-		# Make sure that we don't repeat any combinations (since that would be dumb).
-		chosenConnections.sort(reverse=True)
-		hasBeenChosen = [False]*(len(self.connections))
-		for itr in range(iters):
-			if hasBeenChosen[chosenConnections[itr]]:
-				pass
-			else:
-				hasBeenChosen[chosenConnections[itr]] = True
-				hasBeenChosen[chosenConnections[itr]+1] = True #TODO: I am not sure regarding this one.
-				r = chosenConnections[itr]
+			r = bestIdxYet
+			
+			middlepoint1 = self.subRoutes[self.connections[r]].getSecondEndPoint()
+			middlepoint2 = self.subRoutes[self.connections[r+1]].getFirstEndPoint()
+			midPointDist = calcDist(middlepoint2, middlepoint1)
 
-				"""
-				case = None
-				if self.isFirstEndPointInput[r] and self.isFirstEndPointInput[r+1]:
-					case = 2
+			newSubRoute = self.combineTwoSubRoutes(self.subRoutes[self.connections[r]], self.subRoutes[self.connections[r+1]])
 
-				if self.isFirstEndPointInput[r] and not self.isFirstEndPointInput[r+1]:
-					case = 3
+			self.externalDist -= midPointDist
 
-				if not self.isFirstEndPointInput[r] and self.isFirstEndPointInput[r+1]:
-					case = 0
+			self.subRoutes[self.connections[r]] = newSubRoute
+			self.subRoutes.pop(self.connections[r+1])
 
-				if not self.isFirstEndPointInput[r] and not self.isFirstEndPointInput[r+1]:
-					case = 1
-				assert case != None
-				"""
-				newSubRoute = self.combineTwoSubRoutes(self.subRoutes[self.connections[r]], self.subRoutes[self.connections[r+1]])
+			for j in range(len(self.connections)):
+				if self.connections[j]>self.connections[r]:
+					self.connections[j] -= 1
+			self.connections.pop(r+1) # This might be true?
+			self.n = len(self.connections)
+		
+		"""
+		for i in range(len(self.subRoutes)):
+			sr = self.subRoutes[self.connections[i]]
+			nextSr = self.subRoutes[self.connections[(i+1)%self.n]]
+			dist2next = calcDist(sr.getSecondEndPoint(), nextSr.getFirstEndPoint())
+			print("here:", sr.dist, "dist proper:", sum(calcDist(sr.points[j], sr.points[j+1]) for j in range(sr.n-1)) + calcDist(sr.endPoints[0], sr.points[0]) + calcDist(sr.endPoints[1], sr.points[-1]),"dist to next:", dist2next)
+			assert fabs(sr.dist - (sum(calcDist(sr.points[j], sr.points[j+1]) for j in range(sr.n-1)) + calcDist(sr.endPoints[0], sr.points[0]) + calcDist(sr.endPoints[1], sr.points[-1]))) < 1.0e-10
+		print(self.subRoutes[-1].points)
 
-				self.subRoutes[r] = newSubRoute # TODO: Yes?
-				#for i in range(r+1, len(self.connections)):
-				#	self.connections[i] -= 1
-				for i in range(len(self.connections)):
-					if self.connections[i]>r:
-						self.connections[i] -= 1
-				self.connections.pop(r+1) # This might be true?
-				self.subRoutes.pop(r+1) # This might be true?
-		self.n = len(self.connections)
+		print("-")
+
+		tmp = self.subRoutes[2]
+		print(calcDist(tmp.getFirstEndPoint(), tmp.points[0]))
+		print(calcDist(tmp.points[0], tmp.points[1]))
+		print(calcDist(tmp.points[1], tmp.points[2]))
+		print(calcDist(tmp.points[2], tmp.points[3]))
+		print(calcDist(tmp.points[3], tmp.getSecondEndPoint()))
+		print("external:", self.calcExternalDist())
+
+		assert fabs(FORDEBUG1 - self.totalNumberOfCities()) <1.0e-10
+		print("last:", FORDEBUG3, self.getTotalDist())
+		assert fabs(FORDEBUG3 - self.getTotalDist()) < 1.0e-10
+		assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
+		assert fabs(FORDEBUG2 - self.getProperTotalDist()) < 1.0e-10
+		"""
+
+

@@ -19,19 +19,26 @@ if __name__ == '__main__':
 	# Create subroutes
 	subroutes = [SubRoute([gPoints[3*i+1]], gPoints[3*i], gPoints[3*i+2]) for i in range(int(gN/3))]
 
-	#biggerSubRoute = combineTwoSubRoutes(subroutes[0], subroutes[1], 0)
-	#simulatedAnnealing(biggerSubRoute.points, biggerSubRoute.endPoints)
-
 	msr = MetaSubRoute(subroutes)
 
 	# TODO: Replace this with a starting heuristic.
+	print("TOTAL DIST:", msr.getTotalDist(), msr.getProperTotalDist())
 	msr.optimize()
+	print("TOTAL DIST:", msr.getTotalDist(), msr.getProperTotalDist())
+	msr.pickWhichSubroutesThatShouldBeCombined()
+	print("TOTAL DIST:", msr.getTotalDist(), msr.getProperTotalDist())
+	for i in range(len(msr.subRoutes)):
+		msr.subRoutes[i].smoothInternal()
+	print("TOTAL DIST:", msr.getTotalDist(), msr.getProperTotalDist())
 
+
+	"""
 	for itr in range(4):
 		# Combine subroutes and to internal optimization.
 		while msr.n>1:
 			print("n:", msr.n)
 			msr.pickWhichSubroutesThatShouldBeCombined()
+			print("starting optimization.")
 			for i in range(len(msr.subRoutes)):
 				msr.subRoutes[i].smoothInternal()
 		print("n:", msr.n)
@@ -39,8 +46,11 @@ if __name__ == '__main__':
 		# Divide subroutes and to external optimization
 		while msr.n<int(gN/5): #TODO: 5 is arbitraty. Tune.
 			msr.divideSubroutes()
+			print("starting optimization.")
 			msr.optimize()
 			print("n:", msr.n)
-		print("n:", msr.n)
+		#print("n:", msr.n)
 
-		print("TOTAL DIST:", msr.getTotalDist())
+		print("TOTAL DIST:", msr.getTotalDist(), msr.getProperTotalDist())
+	"""
+
