@@ -44,8 +44,9 @@ class SubRoute():
 		two at that point. The two resulting subroutes are returned.
 		"""
 		# TODO: This function is shit.
-		assert self.n > 1
-		divisionPoint = randint(0, self.n-1)
+		assert self.n >= 4
+		divisionPoint = randint(1, self.n-3)
+		#print("N:", self.n)
 
 		if self.isReversed:
 			self.isReversed = False
@@ -54,9 +55,12 @@ class SubRoute():
 			tmp = self.endPoints[0]
 			self.endPoints[0] = self.endPoints[1]
 			self.endPoints[1] = tmp
+		#print("div pnt:", divisionPoint)
 
-		subroute1 = SubRoute(self.points[0:divisionPoint+1], self.points[0], self.points[divisionPoint])
-		subroute2 = SubRoute(self.points[divisionPoint:], self.points[divisionPoint], self.points[-1])
+		subroute1 = SubRoute(self.points[0:divisionPoint], self.endPoints[0], self.points[divisionPoint])
+		subroute2 = SubRoute(self.points[(divisionPoint+2):], self.points[divisionPoint+1], self.endPoints[1])
+
+		assert self.n == subroute1.n + subroute2.n + 2
 
 		return (subroute1, subroute2)
 
@@ -99,30 +103,56 @@ class MetaSubRoute():
 			# TODO: This 10 is stupid.
 			bestYet = -1.0
 			bestIdx = -1
-			for j in range(10):
+			for j in range(30):
 				r = randint(0, self.n-1)
-				if self.subRoutes[r].dist > bestYet and self.subRoutes[r].n>1:
+				if self.subRoutes[r].dist > bestYet and self.subRoutes[r].n>=4:
 					bestYet = self.subRoutes[r].dist
 					bestIdx = r
+
+			if bestIdx == -1:
+				assert any([sr.n>=4 for sr in self.subRoutes])
+				print("crap")
+
 			assert bestIdx != -1
 			r = bestIdx
+			assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
+			#print("connections before:", self.connections)
+			#print("prop dist before", self.getProperTotalDist(), "dist before:", self.getTotalDist())
+			#print("external:", self.externalDist)
+			#print("endpoints:", self.subRoutes[0].getFirstEndPoint(), self.subRoutes[0].getSecondEndPoint(), self.subRoutes[0].n, r)
+
 			(self.subRoutes[r], newsubroute) = self.subRoutes[r].divideInto2SubRoutesRandomly()
+			self.externalDist += calcDist(self.subRoutes[r].getSecondEndPoint(), newsubroute.getFirstEndPoint())
+
+			#print("middlepoints:", self.subRoutes[r].getSecondEndPoint(), newsubroute.getFirstEndPoint() )
+
 
 			connectionIdxOfR = -1
 			assert r < self.n
 			for j in range(len(self.connections)):
 				if self.connections[j] == r:
 					connectionIdxOfR = j
-					break
 			assert connectionIdxOfR != -1
-			if connectionIdxOfR==self.n-1:
+			#print("r", r, connectionIdxOfR)
+
+			if connectionIdxOfR == self.n-1:
 				self.connections.append(self.n)
 				self.subRoutes.append(newsubroute)
 			else:
 				self.connections.insert(connectionIdxOfR+1, self.n)
-				self.subRoutes.insert(connectionIdxOfR+1, newsubroute)
+				#self.subRoutes.insert(connectionIdxOfR+1, newsubroute)
+				self.subRoutes.append(newsubroute)
+
 
 			self.n += 1
+			#print("connections after:", self.connections)
+			#print("prop dist after", self.getProperTotalDist(), "dist after:", self.getTotalDist())
+			#print("external:", self.externalDist)
+			#print("\n")
+
+
+
+			#assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
 
 	def calcExternalDist(self):
 		"""
@@ -156,6 +186,7 @@ class MetaSubRoute():
 
 	def optimize(self, maxIter=1000):
 		# TODO: Make sure one can REVERSE the subroutes in the optimization.
+		#assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
 		def mutate(ind_in, mute_rate):
 			ind = copy(ind_in)
 			length = len(ind)
@@ -170,6 +201,7 @@ class MetaSubRoute():
 
 		# TODO: We need a proper optimizer here!
 		for itr in range(maxIter):
+			#assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
 			newConn = mutate(self.connections, random())
 			tmp = self.connections
 			self.connections = newConn
@@ -177,7 +209,7 @@ class MetaSubRoute():
 
 			if newDist < self.externalDist:
 				self.externalDist = newDist
-				print("improvements (external):", newDist)
+				#print("improvements (external):", newDist)
 			else:
 				self.connections = tmp
 
@@ -192,7 +224,7 @@ class MetaSubRoute():
 		middlepoint1 = subroute1.getSecondEndPoint()
 		middlepoint2 = subroute2.getFirstEndPoint()
 
-		DEBUG1 = subroute1.n + subroute1.n
+		DEBUG1 = subroute1.n + subroute2.n
 
 		totalDist = subroute1.dist + subroute2.dist + calcDist(middlepoint2, middlepoint1)
 
@@ -213,6 +245,7 @@ class MetaSubRoute():
 		#subroute = SubRoute(points, endpoint1, endpoint2, dist=subroute1.dist+subroute2.dist + calcDist(middlepoint1, middlepoint2))
 		subroute = SubRoute(points, endpoint1, endpoint2)
 
+
 		assert len(points) == subroute.n
 		assert DEBUG1+2 == subroute.n
 
@@ -229,17 +262,21 @@ class MetaSubRoute():
 		This is repeated a few times.
 		"""
 
+		"""
+		assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
+
 		FORDEBUG1 = self.totalNumberOfCities()
 		FORDEBUG2 = self.getProperTotalDist()
 		FORDEBUG3 = self.getTotalDist()
 
 		assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
+		"""
 
 
 		dist = self.externalDist
-		iters = 1#int(max((0.5*self.n), 1))
+		iters = int(max((0.5*self.n), 1))
 
-		
+		"""
 		for i in range(len(self.subRoutes)):
 			sr = self.subRoutes[self.connections[i]]
 			nextSr = self.subRoutes[self.connections[(i+1)%self.n]]
@@ -250,6 +287,7 @@ class MetaSubRoute():
 
 		print("external:", self.calcExternalDist())
 		print("\n")
+		"""
 
 
 		for i in range(iters):
@@ -266,40 +304,33 @@ class MetaSubRoute():
 
 				if dist < shortestDistYet:
 					shortestDistYet = dist
-					bestIdxYet = j
+					bestIdxYet = r
 
 				assert bestIdxYet != -1
 
 			r = bestIdxYet
-			assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
+			#assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
 
 			
 			middlepoint1 = self.subRoutes[self.connections[r]].getSecondEndPoint()
 			middlepoint2 = self.subRoutes[self.connections[r+1]].getFirstEndPoint()
 			midPointDist = calcDist(middlepoint2, middlepoint1)
 
-			newSubRoute = self.combineTwoSubRoutes(deepcopy(self.subRoutes[self.connections[r]]), deepcopy(self.subRoutes[self.connections[r+1]]))
+			newSubRoute = self.combineTwoSubRoutes(self.subRoutes[self.connections[r]], self.subRoutes[self.connections[r+1]])
 
-			assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
 
 			self.externalDist -= midPointDist
 
 			self.subRoutes[self.connections[r]] = newSubRoute
 			self.subRoutes.pop(self.connections[r+1])
-
-			print("r:", r, self.connections[r], self.connections[r+1])
-
-			print("connections before", self.connections)
+			
 			for j in range(len(self.connections)):
 				if self.connections[j]>self.connections[r+1]:
 					self.connections[j] -= 1
 			self.connections.pop(r+1) # This might be true?
 			self.n = len(self.connections)
 
-			print("connections before", self.connections)
-
-
-		
+		"""
 		for i in range(len(self.subRoutes)):
 			sr = self.subRoutes[self.connections[i]]
 			nextSr = self.subRoutes[self.connections[(i+1)%self.n]]
@@ -309,11 +340,14 @@ class MetaSubRoute():
 		print(self.subRoutes[-1].points)
 
 		print("external:", self.calcExternalDist())
+		"""
 
+		"""
 		assert fabs(FORDEBUG1 - self.totalNumberOfCities()) <1.0e-10
-		print("proper dist:", self.getProperTotalDist(),"inproper dist:", self.getTotalDist())
+		#print("proper dist:", self.getProperTotalDist(),"inproper dist:", self.getTotalDist())
 		assert fabs(FORDEBUG3 - self.getTotalDist()) < 1.0e-10
 		assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
 		assert fabs(FORDEBUG2 - self.getProperTotalDist()) < 1.0e-10
+		"""
 
 
