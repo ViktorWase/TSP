@@ -13,7 +13,7 @@ def calcDist(p1, p2):
 
 if __name__ == '__main__':
 	seed(0)
-	gN = 120
+	gN = 30
 	gPoints = [ [random(), random()] for _ in range(gN)]
 
 	# Create subroutes
