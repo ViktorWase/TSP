@@ -44,17 +44,34 @@ def multiLevelOptimization(points, iters=5):
 
 		print("TOTAL DIST:", msr.getTotalDist(), msr.getProperTotalDist())
 		assert fabs(msr.getProperTotalDist() - msr.getTotalDist()) < 1.0e-10
-	return msr.getTotalDist()
+	return msr
 
 if __name__ == '__main__':
 	seed(0)
-	gN = 1200
+	gN = 12
 	gPoints = [ [random(), random()] for _ in range(gN)]
 
 	import cProfile
 	import re
-	multiLevelOptimization(gPoints)
+	msr = multiLevelOptimization(gPoints)
 	#cProfile.run("multiLevelOptimization(gPoints)")
+
+	route = msr.getRoute()
+
+	import matplotlib.pyplot as plt
+	X = []
+	Y = []
+	print(route)
+	for i in range(len(route)):
+		X.append(route[i][0])
+		Y.append(route[i][1])
+	#X.append(0.0)
+	#Y.append(0.0)
+	X.append(X[0])
+	Y.append(Y[0])
+	plt.plot(X, Y, '-o')
+	plt.ylabel('some numbers')
+	plt.show()
 
 	
 	

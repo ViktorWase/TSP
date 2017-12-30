@@ -79,6 +79,15 @@ class SubRoute():
 			self.dist = newDist
 			self.points = newPoints
 
+	def getRoute(self):
+		route = copy(self.points)
+		if self.isReversed:
+			route.reverse()
+
+		route.insert(0, self.getFirstEndPoint())
+		route.insert(self.n, self.getSecondEndPoint())
+		return route
+
 
 class MetaSubRoute():
 	"""
@@ -95,6 +104,14 @@ class MetaSubRoute():
 		self.connections = copy(connections)
 
 		self.externalDist = self.calcExternalDist()
+
+	def getRoute(self):
+		route = []
+		for i in range(len(self.subRoutes)):
+			print(i)
+			sr = self.subRoutes[i]
+			route += sr.getRoute()
+		return route
 
 	def divideSubroutes(self):
 		for i in range(2*self.n):
