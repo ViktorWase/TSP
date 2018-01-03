@@ -106,13 +106,11 @@ def simulatedAnnealing(route, endPoints, maxIter=100, decay=0.9, startDist=None)
 
 	def getRandNeig(route, endPoints):
 		newRoute = list(route) #TODO: This might be super slow
-		improvement = 0.0
-		"""
 		if len(route) <= 4 or random() < 0.5: #TODO: Don't forget to remove minus sign
 			(newRoute, improvement) = movePoint(newRoute, endPoints)
 		else:
 			(newRoute, improvement) = mutate_using_2_opts(newRoute, endPoints)
-		"""
+		
 		return (newRoute, improvement)
 
 	def temperature(x):

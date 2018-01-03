@@ -3,6 +3,7 @@ from math import sqrt, inf, fabs
 from random import random, randint
 
 from internalOptimization import simulatedAnnealing
+from externalOptimization import externalOptimization
 
 def calcDist(p1, p2):
 	return sqrt(sum((p1[i]-p2[i])*(p1[i]-p2[i]) for i in range(len(p1))))
@@ -74,7 +75,7 @@ class SubRoute():
 			#print("n is too small. No optimization to be done.")
 			return
 
-		(newPoints, newDist) = simulatedAnnealing(copy(self.points), self.endPoints)
+		(newPoints, newDist) = simulatedAnnealing(copy(self.points), self.endPoints, startDist=self.dist)
 		if newDist < self.dist:
 			self.dist = newDist
 			self.points = newPoints
@@ -108,7 +109,6 @@ class MetaSubRoute():
 	def getRoute(self):
 		route = []
 		for i in range(len(self.subRoutes)):
-			print(i)
 			sr = self.subRoutes[i]
 			route += sr.getRoute()
 		return route
@@ -116,7 +116,7 @@ class MetaSubRoute():
 	def divideSubroutes(self):
 		for i in range(2*self.n):
 			assert self.n == len(self.subRoutes)
-			# Look at 10 subRoutes and pick the one with the biggest dist.
+			# Look at 30 subRoutes and pick the one with the biggest dist.
 			# TODO: This 10 is stupid.
 			bestYet = -1.0
 			bestIdx = -1
@@ -128,6 +128,12 @@ class MetaSubRoute():
 
 			if bestIdx == -1:
 				assert any([sr.n>=4 for sr in self.subRoutes])
+				while True:
+					r = randint(0, self.n-1)
+					if self.subRoutes[r].dist > bestYet and self.subRoutes[r].n>=4:
+						bestYet = self.subRoutes[r].dist
+						bestIdx = r
+						break
 				print("crap")
 
 			assert bestIdx != -1
@@ -202,12 +208,13 @@ class MetaSubRoute():
 		return dist
 
 	def optimize(self, maxIter=1000):
+		"""
 		# TODO: Make sure one can REVERSE the subroutes in the optimization.
 		#assert fabs(self.getProperTotalDist() - self.getTotalDist()) < 1.0e-10
 		def mutate(ind_in, mute_rate):
 			ind = copy(ind_in)
 			length = len(ind)
-			numberOfMutations = randint(1, max(round(length*mute_rate), 1))
+			numberOfMutations = randint(0, max(round(length*mute_rate), 1))
 			for i in range(numberOfMutations):
 				a = randint(0, length - 1)
 				b = randint(0, length - 1)
@@ -229,6 +236,8 @@ class MetaSubRoute():
 				#print("improvements (external):", newDist)
 			else:
 				self.connections = tmp
+		"""
+		externalOptimization(self, self.externalDist)
 
 
 	def combineTwoSubRoutes(self, subroute1, subroute2):
@@ -312,8 +321,8 @@ class MetaSubRoute():
 			shortestDistYet = inf
 			bestIdxYet = -1
 
-			# TODO: 5 is a hard coded number. Do some meta tuning instead.
-			for j in range(5):
+			# TODO: 10 is a hard coded number. Do some meta tuning instead.
+			for j in range(10):
 				r = randint(0, len(self.connections)-1-1)
 				p1 = self.subRoutes[self.connections[r]].getSecondEndPoint()
 				p2 = self.subRoutes[self.connections[r+1]].getFirstEndPoint()
