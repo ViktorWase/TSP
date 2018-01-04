@@ -195,7 +195,6 @@ class MetaSubRoute():
 		return dist
 
 	def getProperTotalDist(self):
-
 		dist = sum(sum(calcDist(sr.points[i], sr.points[i+1]) for i in range(sr.n-1)) + calcDist(sr.endPoints[0], sr.points[0]) + calcDist(sr.endPoints[1], sr.points[-1]) for sr in self.subRoutes)
 
 		dist += self.calcExternalDist()

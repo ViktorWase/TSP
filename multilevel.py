@@ -96,10 +96,6 @@ def initialGuess(points):
 	return out
 
 
-
-
-
-
 if __name__ == '__main__':
 	seed(0)
 	gN = 120
