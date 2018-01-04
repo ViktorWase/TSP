@@ -61,24 +61,37 @@ def distChangeFrom2opt(msr, lineIdx1, lineIdx2, isFirstCase):
 
 def swap2neighSubGroups(msr, idx, newIdx, reversals, pointOrder):
 	n = len(msr.subRoutes)
-	#print("swapping")
 	assert abs(idx-newIdx)==1 or (idx==0 and newIdx==n-1) or (newIdx==0 and idx==n-1)
 
-	if idx < newIdx or (idx==n-1 and newIdx==0):
+	if idx==0 and newIdx==n-1:
+		leftIdx = newIdx
+		rightIdx = idx
+	elif idx < newIdx or (idx==n-1 and newIdx==0):
 		leftIdx = idx
 		rightIdx = newIdx
 	else:
 		leftIdx = newIdx
 		rightIdx = idx
 
+
 	p1 = msr.subRoutes[pointOrder[leftIdx]]
-	pLeft = msr.subRoutes[pointOrder[(leftIdx-1+2*n)%n]]
+	pLeft = msr.subRoutes[pointOrder[(leftIdx-1+3*n)%n]]
 	p2 = msr.subRoutes[pointOrder[rightIdx]]
 	pRight = msr.subRoutes[pointOrder[(rightIdx+1)%n]]
+
+	p1.isReversed = not p1.isReversed if reversals[pointOrder[leftIdx]] else p1.isReversed
+	p2.isReversed = not p2.isReversed if reversals[pointOrder[rightIdx]] else p2.isReversed
+	pLeft.isReversed = not pLeft.isReversed if reversals[pointOrder[(leftIdx-1+3*n)%n]] else pLeft.isReversed
+	pRight.isReversed = not pRight.isReversed if reversals[pointOrder[(rightIdx+1)%n]] else pRight.isReversed
 
 	distBefore = calcDist(pLeft.getSecondEndPoint(), p1.getFirstEndPoint()) + calcDist(p1.getSecondEndPoint(), p2.getFirstEndPoint() ) + calcDist( p2.getSecondEndPoint(), pRight.getFirstEndPoint())
 
 	distAfter = calcDist(pLeft.getSecondEndPoint(), p2.getFirstEndPoint()) + calcDist(p2.getSecondEndPoint(), p1.getFirstEndPoint() ) + calcDist( p1.getSecondEndPoint(), pRight.getFirstEndPoint())
+
+	p1.isReversed = not p1.isReversed if reversals[pointOrder[leftIdx]] else p1.isReversed
+	p2.isReversed = not p2.isReversed if reversals[pointOrder[rightIdx]] else p2.isReversed
+	pLeft.isReversed = not pLeft.isReversed if reversals[pointOrder[(leftIdx-1+3*n)%n]] else pLeft.isReversed
+	pRight.isReversed = not pRight.isReversed if reversals[pointOrder[(rightIdx+1)%n]] else pRight.isReversed
 
 	tmp = pointOrder[idx]
 	pointOrder[idx] = pointOrder[newIdx]
@@ -93,7 +106,7 @@ def moveOneSubGroup(msr, idx, newIdx, reversals, shouldReverse, pointOrder):
 		return 0.0
 
 	if abs(idx-newIdx)==1 or (idx==0 and newIdx==n-1) or (newIdx==0 and idx==n-1):
-		return 0.0 #swap2neighSubGroups(msr, idx, newIdx, pointOrder)
+		return swap2neighSubGroups(msr, idx, newIdx, reversals, pointOrder)
 
 	p = msr.subRoutes[pointOrder[idx]]
 	pRight = msr.subRoutes[pointOrder[(idx+1)%n]]
@@ -273,7 +286,7 @@ def externalOptimization(msr, startDist, maxIter=50):
 	currentDist = startDist
 
 	#print("start dist:", startDist)
-	assert fabs(startDist- msr.calcExternalDist()) < 1.0e-8
+	assert fabs(startDist-msr.calcExternalDist()) < 1.0e-8
 
 	for itr in range(maxIter):
 		temp = temperature( float(maxIter-itr) / maxIter )
