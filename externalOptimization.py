@@ -102,6 +102,8 @@ def swap2neighSubGroups(msr, idx, newIdx, reversals, pointOrder):
 def moveOneSubGroup(msr, idx, newIdx, reversals, shouldReverse, pointOrder):
 	n = len(msr.subRoutes)
 
+	assert n > 3
+
 	if idx == newIdx:
 		return 0.0
 
@@ -125,7 +127,8 @@ def moveOneSubGroup(msr, idx, newIdx, reversals, shouldReverse, pointOrder):
 	#Flip them...
 	pRight.isReversed = not pRight.isReversed if reversals[pointOrder[(idx+1)%n]] else pRight.isReversed
 	pLeft.isReversed = not pLeft.isReversed if reversals[pointOrder[(idx-1+n)%n]] else pLeft.isReversed
-	newPLeft.isReversed = not newPLeft.isReversed if reversals[pointOrder[(newIdx-1+n)%n]] else newPLeft.isReversed
+	if newPLeft != pRight and newPLeft != pLeft:
+		newPLeft.isReversed = not newPLeft.isReversed if reversals[pointOrder[(newIdx-1+n)%n]] else newPLeft.isReversed
 	newPRight.isReversed = not newPRight.isReversed if reversals[pointOrder[newIdx]] else newPRight.isReversed
 
 	distBefore = calcDist(p2nd, pRight.getFirstEndPoint()) + calcDist(p1st, pLeft.getSecondEndPoint()) + calcDist(newPLeft.getSecondEndPoint(), newPRight.getFirstEndPoint())
@@ -135,27 +138,55 @@ def moveOneSubGroup(msr, idx, newIdx, reversals, shouldReverse, pointOrder):
 	# ...and flip them back!
 	pRight.isReversed = not pRight.isReversed if reversals[pointOrder[(idx+1)%n]] else pRight.isReversed
 	pLeft.isReversed = not pLeft.isReversed if reversals[pointOrder[(idx-1+n)%n]] else pLeft.isReversed
-	newPLeft.isReversed = not newPLeft.isReversed if reversals[pointOrder[(newIdx-1+n)%n]] else newPLeft.isReversed
+	if newPLeft != pRight and newPLeft != pLeft:
+		newPLeft.isReversed = not newPLeft.isReversed if reversals[pointOrder[(newIdx-1+n)%n]] else newPLeft.isReversed
 	newPRight.isReversed = not newPRight.isReversed if reversals[pointOrder[newIdx]] else newPRight.isReversed
 
 	tmp = pointOrder[idx]
 
-	pointOrder.insert(newIdx, tmp)
-	reversals.insert(newIdx, reversals[tmp])
+	DEBUG1 = pointOrder[(newIdx-1+n)%n]
+	DEBUG2 = pointOrder[newIdx]
 
-	if newIdx >= idx:
+	DEBUG3 = pointOrder[(idx-1+n)%n]
+	DEBUG4 = pointOrder[(idx+1)%n]
+
+	pointOrder.insert(newIdx, tmp)
+
+	if newIdx > idx:
 		pointOrder.pop(idx)
-		reversals.pop(idx)
+	elif newIdx == idx:
+		assert False # This shouldn't happen!
+
 	else:
 		pointOrder.pop(idx+1)
-		reversals.pop(idx+1)
+
+
+	# Only for debugging
+	a = -1
+	for i in range(n):
+		if pointOrder[i] == tmp:
+			a = i
+			break
+	assert a!= -1
+	#assert a == newIdx
+
+	assert pointOrder[(a+1)%n] == DEBUG2
+	assert pointOrder[(a-1+n)%n] == DEBUG1
+
+	for i in range(n):
+		if pointOrder[i] == DEBUG3:
+			assert pointOrder[(i+1)%n] == DEBUG4
+			break
+		assert i!=n-1
+	#End of debugging
+
 
 	return distAfter - distBefore
 
 def getRandomNeigh(msr, reversals, pointOrder):
 	n = len(msr.subRoutes)
 	r = random()
-	if r < -0.33:
+	if r < 0.33:
 		chosenIdx = randint(0, n-1)
 
 		change = distChangeFromReversal(msr, chosenIdx, reversals, pointOrder)
@@ -216,6 +247,30 @@ def changeMSR(msr, reversals, pointOrder, dist):
 
 	return
 
+def doSanityCheck(subroutes, reversals, pointOrder, distIn):
+	dist = 0.0
+
+	for i in range(len(subroutes)):
+		if reversals[pointOrder[i]]:
+			subroutes[pointOrder[i]].isReversed = not subroutes[pointOrder[i]].isReversed
+
+	for i in range(len(subroutes)-1):
+		p1 = subroutes[pointOrder[i]].getSecondEndPoint()
+		p2 = subroutes[pointOrder[i+1]].getFirstEndPoint()
+		dist += calcDist(p1, p2)
+
+	# and the wrap-around-case.
+	p1 = subroutes[pointOrder[-1]].getSecondEndPoint()
+	p2 = subroutes[pointOrder[0]].getFirstEndPoint()
+	dist += calcDist(p1, p2)
+
+	for i in range(len(subroutes)):
+		if reversals[pointOrder[i]]:
+			subroutes[pointOrder[i]].isReversed = not subroutes[pointOrder[i]].isReversed
+
+	assert fabs(dist-distIn) < 1.0e-8
+
+
 def calcOptimalSolFor3(msr):
 	n = len(msr.subRoutes)
 
@@ -243,7 +298,6 @@ def calcOptimalSolFor3(msr):
 
 			dist = msr.calcExternalDist()
 
-
 			if dist < bestDist:
 				bestDist = dist
 				bestReversal = copy(reversals)
@@ -261,8 +315,7 @@ def calcOptimalSolFor3(msr):
 
 	msr.externalDist = bestDist
 
-
-def externalOptimization(msr, startDist, maxIter=50):
+def externalOptimization(msr, startDist, maxIter=30):
 	assert fabs(msr.getProperTotalDist() - msr.getTotalDist()) < 1.0e-10
 	reversals = [False for sr in msr.subRoutes]
 	pointOrder = copy(msr.connections)
@@ -272,7 +325,6 @@ def externalOptimization(msr, startDist, maxIter=50):
 		calcOptimalSolFor3(msr)
 		assert fabs(msr.getProperTotalDist() - msr.getTotalDist()) < 1.0e-8
 		return
-
 
 	def acceptanceProb(newVal, orgVal, temp):
 		if newVal < orgVal:
@@ -302,7 +354,11 @@ def externalOptimization(msr, startDist, maxIter=50):
 			reversals = newReversal
 			pointOrder = newOrder
 
+			if distChange!=0:
+				print(reversals, pointOrder, distChange)
+
 			#print("New improvement:", currentDist, distChange, pointOrder)
+			doSanityCheck(msr.subRoutes, reversals, pointOrder, currentDist)
 
 	if currentDist < startDist:
 		changeMSR(msr, reversals, pointOrder, currentDist)
@@ -312,5 +368,3 @@ def externalOptimization(msr, startDist, maxIter=50):
 	assert fabs(msr.getProperTotalDist() - msr.getTotalDist()) < 1.0e-8
 
 	return
-
-

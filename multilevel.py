@@ -97,7 +97,7 @@ def initialGuess(points):
 
 
 if __name__ == '__main__':
-	seed(0)
+	seed(2)
 	gN = 120
 	#gPoints = [ [random(), random()] for _ in range(gN)]
 	gPoints = [ [gauss(0, 1), gauss(0, 1)] for _ in range(gN)]
@@ -106,7 +106,7 @@ if __name__ == '__main__':
 	import re
 	points = initialGuess(gPoints)
 	assert len(points) == len(gPoints)
-	msr = multiLevelOptimization(points, iters=50)
+	msr = multiLevelOptimization(points, iters=150)
 	#cProfile.run("multiLevelOptimization(gPoints)")
 
 	route = msr.getRoute()
